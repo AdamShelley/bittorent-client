@@ -3,40 +3,88 @@
 // Use TDD approach - write tests for each type
 // Keys in dictionaries must be in lexicographical order
 
-// Find the delimiter (the colon) - where does the length end and the string data begin?
-// Extract and convert the length - what's before the colon? How do you turn that into a number you can use?
-// Use that length to extract exactly the right amount - starting right after the colon, how do you grab exactly N characters?
-
 export const decode = (encodedString: string, start: number) => {
-  let decodedValue;
-  let index = start;
-  //str
-  let wordStartIndex = 0;
-  let currentWordLength = 0;
-  //num
-  let numEnd = 0;
-
   console.log(">Decoding: ", encodedString);
 
-  // Its a number
   if (encodedString[start] === "i") {
-    for (let i = 0; i < encodedString.length; i++) {
-      if (encodedString[i] === "e") {
-        numEnd = i;
-        decodedValue = Number(encodedString.slice(start + 1, numEnd));
-        return { decodedValue, numEnd };
-      }
+    return decodeNumber(encodedString, start);
+  } else if (encodedString[start] === "l") {
+    return decodeList(encodedString, start);
+  } else if (encodedString[start] === "d") {
+    return decodeDictionary(encodedString, start);
+  } else {
+    return decodeString(encodedString, start);
+  }
+};
+
+const decodeDictionary = (encodedString: string, start: number) => {
+
+  console.log("Decoding: ", encodedString, "index: ", start);
+
+  let object: any = {};
+  let currentPosition = start + 1;
+
+  while (currentPosition < encodedString.length) {
+    if (encodedString[currentPosition] === "e") {
+      return { decodedValue: object, index: currentPosition };
+    }
+
+    // Decode key
+    let keyResult = decodeString(encodedString, currentPosition);
+    if (keyResult) {
+      currentPosition = keyResult.index;
+    }
+
+    // Decode value
+    let valueResult = decode(encodedString, currentPosition);
+    if (valueResult) {
+      currentPosition = valueResult.index;
+    }
+
+    if (keyResult && valueResult) {
+      object[keyResult.decodedValue] = valueResult?.decodedValue;
+    }
+
+    return { decodedValue: object, index: currentPosition };
+  }
+};
+
+const decodeList = (encodedString: string, start: number) => {
+  // loop through and if string pass to decodeString, if number pass to decodeNumber
+  // l6:Coding10:Challenges4:cake5:happye
+  let array = [];
+  let currentPosition = start;
+
+  while (currentPosition < encodedString.length) {
+    if (encodedString[currentPosition] === "l") {
+      currentPosition++;
+    }
+
+    if (encodedString[currentPosition] === "e") {
+      return { decodedValue: array, index: currentPosition };
+    }
+
+    let result;
+    if (encodedString[currentPosition] === "i") {
+      result = decodeNumber(encodedString, currentPosition);
+    } else {
+      result = decodeString(encodedString, currentPosition);
+    }
+
+    if (result) {
+      array.push(result.decodedValue);
+      currentPosition = result.index;
     }
   }
+};
 
-  // List
+const decodeString = (encodedString: string, start: number) => {
+  let decodedValue;
+  let index = start;
+  let wordStartIndex = 0;
+  let currentWordLength = 0;
 
-  // Dictionary
-
-  // String
   for (let i = start; i < encodedString.length; i++) {
-    // Handle number with i and e
-
     // if colon keep everything from start to colon position, thats the number
     if (encodedString[i] === ":") {
       wordStartIndex = i + 1;
@@ -47,10 +95,23 @@ export const decode = (encodedString: string, start: number) => {
         i + currentWordLength + 1
       );
 
-      index = i + currentWordLength;
+      index = i + currentWordLength + 1;
 
       console.log(decodedValue);
       return { decodedValue, index };
+    }
+  }
+};
+
+const decodeNumber = (encodedString: string, start: number) => {
+  let decodedValue;
+  let numEnd = 0;
+
+  for (let i = start; i < encodedString.length; i++) {
+    if (encodedString[i] === "e") {
+      numEnd = i;
+      decodedValue = Number(encodedString.slice(start + 1, numEnd));
+      return { decodedValue, index: numEnd + 1 };
     }
   }
 };
