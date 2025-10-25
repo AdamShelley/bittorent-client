@@ -1,3 +1,9 @@
+type BencodeValue =
+  | string
+  | number
+  | BencodeValue[]
+  | { [key: string]: BencodeValue };
+
 // DECODING
 export const decode = (encodedString: string | Buffer, start: number) => {
   const buffer =
@@ -104,9 +110,7 @@ const decodeNumber = (encodedString: Buffer, start: number) => {
 
 // ENCODING
 
-export const encode = (
-  value: string | number | Array<any> | object
-): string => {
+export const encode = (value: BencodeValue): string => {
   if (typeof value === "string") {
     return encodeString(value);
   } else if (typeof value === "number") {
@@ -133,11 +137,14 @@ const encodeArray = (value: Array<any>): string => {
   return `l${finalstr}e`;
 };
 
-const encodeObject = (value: { [key: string]: any }): string => {
+const encodeObject = (value: BencodeValue): string => {
   const keys = Object.keys(value).sort();
   let finalStr = keys
     .map((key) => {
-      return encodeString(key) + encode(value[key]);
+      return (
+        encodeString(key) +
+        encode((value as { [key: string]: BencodeValue })[key])
+      );
     })
     .join("");
   return `d${finalStr}e`;
