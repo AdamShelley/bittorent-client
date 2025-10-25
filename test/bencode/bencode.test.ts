@@ -4,11 +4,11 @@ import { describe, it, expect } from "vitest";
 
 describe("Bencode decoder", () => {
   it("decodes a simple string", () => {
-    expect(decode("4:spam", 0)).toEqual({ decodedValue: "spam", index: 5 });
+    expect(decode("4:spam", 0)).toEqual({ decodedValue: "spam", index: 6 });
   });
 
   it("decodes an integer", () => {
-    expect(decode("i42e", 0)).toEqual({ decodedValue: 42, index: 3 });
+    expect(decode("i42e", 0)).toEqual({ decodedValue: 42, index: 4 });
   });
 
   it("decodes a list", () => {
