@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/main.ts",
+    "cli": "tsx src/cli/cli.ts",
     "build": "tsc",
     "test": "vitest"
   },
