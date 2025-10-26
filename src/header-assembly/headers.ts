@@ -20,7 +20,7 @@ export interface HeaderReturnType {
   compact: number;
 }
 
-export const headerAssesmbly = (
+export const headerAssembly = (
   decodedValue: DecodedValueType,
   rawInfoBytes: Buffer
 ): HeaderReturnType => {
