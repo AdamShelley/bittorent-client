@@ -7,9 +7,9 @@ const bufferToHex = (buffer: Buffer) => {
     .join("");
 };
 
-export const getPeerList = async (headerAssesmblyResults: HeaderReturnType) => {
+export const getPeerList = async (headerAssemblyResults: HeaderReturnType) => {
   const { url, info_hash, peer_id, port, uploaded, downloaded, left, compact } =
-    headerAssesmblyResults;
+    headerAssemblyResults;
 
   const info_hash_converted = bufferToHex(info_hash);
   const peer_id_converted = bufferToHex(peer_id);
