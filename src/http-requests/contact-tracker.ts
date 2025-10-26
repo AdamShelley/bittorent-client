@@ -14,7 +14,7 @@ export const getPeerList = async (headerAssemblyResults: HeaderReturnType) => {
   const info_hash_converted = bufferToHex(info_hash);
   const peer_id_converted = bufferToHex(peer_id);
 
-  let assembledURL = `${url}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}`;
+  const assembledURL = `${url}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}`;
 
   try {
     const response = await fetch(assembledURL);
@@ -32,7 +32,7 @@ export const getPeerList = async (headerAssemblyResults: HeaderReturnType) => {
 
     const peers = decodedBuffer?.decodedValue.peers;
 
-    let peerInfo = [];
+    const peerInfo = [];
     // Loop through peers, 6 bytes at a time, first 4 are IP , last 2 are PORT
     console.log("Got ", peers.length / 6, " peers");
     for (let i = 0; i < peers.length; i += 6) {

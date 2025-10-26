@@ -1,6 +1,6 @@
 import fs from "fs";
 import { decode } from "../bencode/bencode";
-import { headerAssesmbly } from "../header-assembly/headers";
+import { headerAssembly } from "../header-assembly/headers";
 import { getPeerList } from "../http-requests/contact-tracker";
 
 const torrentPath = process.argv[2];
@@ -41,7 +41,7 @@ const infoEnd = infoSection.index;
 const rawInfoBytes = buffer.subarray(infoStart, infoEnd);
 
 // ASSEMBLE HEADERS
-const headerAssesmblyResults = headerAssesmbly(
+const headerAssesmblyResults = headerAssembly(
   decoded.decodedValue,
   rawInfoBytes
 );
