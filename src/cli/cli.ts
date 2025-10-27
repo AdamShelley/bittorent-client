@@ -52,6 +52,7 @@ const peerList = getPeerList(headerAssesmblyResults);
 console.log(peerList);
 
 // TODO: Build the encoder and deocer for the peer protocol
+
 // TODO: Connect to all the peers, perform handshake, get bitfield - concurrently
 // TODO: Create a way to track all pieces
 // TODO: Download the pieces
