@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import { encode } from "../bencode/bencode";
 
 interface DecodedValueType {
   announce: Buffer;
@@ -28,8 +27,6 @@ export const headerAssembly = (
   const length = decodedValue.info.length;
 
   const hashedInfo = crypto.createHash("sha1").update(rawInfoBytes).digest();
-
-  console.log(hashedInfo);
 
   return {
     url: announceURL.toString("utf8"),

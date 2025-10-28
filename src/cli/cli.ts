@@ -2,6 +2,7 @@ import fs from "fs";
 import { decode } from "../bencode/bencode";
 import { headerAssembly } from "../header-assembly/headers";
 import { getPeerList } from "../http-requests/contact-tracker";
+import { connect } from "../peer-protocol/connect";
 
 const torrentPath = process.argv[2];
 
@@ -48,12 +49,13 @@ const headerAssesmblyResults = headerAssembly(
 if (!headerAssesmblyResults) throw new Error("Assembling header failed");
 
 // GET PEER LIST, IDS, PORTS
-const peerList = getPeerList(headerAssesmblyResults);
-console.log(peerList);
-
-// TODO: Build the encoder and deocer for the peer protocol
+const peerList = await getPeerList(headerAssesmblyResults);
+if (!peerList) throw new Error("Getting peer list failed");
 
 // TODO: Connect to all the peers, perform handshake, get bitfield - concurrently
+const peerConnection = connect(peerList, headerAssesmblyResults);
+console.log(peerConnection);
+
 // TODO: Create a way to track all pieces
 // TODO: Download the pieces
 // TODO: Assemble the file, save, shutdown client

@@ -1,8 +1,15 @@
 import { test, expect } from "vitest";
 import crypto from "crypto";
 import {
+  decode,
+  decodeBitfield,
+  decodeCancel,
   decodeHandshake,
+  decodeHave,
+  decodePiece,
+  decodeRequest,
   encodeBitfield,
+  encodeCancel,
   encodeChoke,
   encodeHandshake,
   encodeHave,
@@ -185,4 +192,84 @@ test("encodes piece message correctly", () => {
   expect(result.readUInt32BE(5)).toBe(0);
   expect(result.readUInt32BE(9)).toBe(offset);
   expect(result.subarray(13).equals(block)).toBe(true);
+});
+
+test("encodes cancel message correctly", () => {
+  const index = 0;
+  const begin = 0;
+  const length = 0;
+
+  const result = encodeCancel(index, begin, length);
+
+  expect(result.length).toBe(17);
+  expect(result.readUInt32BE(0)).toBe(13);
+  expect(result[4]).toBe(8);
+  expect(result.readUInt32BE(5)).toBe(index);
+  expect(result.readUInt32BE(9)).toBe(begin);
+  expect(result.readUInt32BE(13)).toBe(length);
+});
+
+// DECODING
+test("Have decodes correctly", () => {
+  const encodedValue = encodeHave(45);
+
+  const result = decodeHave(encodedValue);
+
+  expect(result.pieceIndex).toBe(45);
+});
+
+test("decodes bitfield correctly", () => {
+  const bitfield = Buffer.from([0b10100100, 0b00000001]);
+  const encoded = encodeBitfield(bitfield);
+  const decoded = decodeBitfield(encoded);
+
+  expect(decoded.bitfield.equals(bitfield)).toBe(true);
+});
+
+test("decodes request correctly", () => {
+  const requestPiece = 5;
+  const startByte = 16384;
+  const requestBytes = 16384;
+
+  const encoded = encodeRequest(requestPiece, startByte, requestBytes);
+  const decoded = decodeRequest(encoded);
+
+  expect(decoded.requestPiece).equals(requestPiece);
+  expect(decoded.startByte).equals(startByte);
+  expect(decoded.requestBytes).equals(requestBytes);
+});
+
+test("Decodes piece correctly", () => {
+  const pieceIndex = 3;
+  const offset = 5;
+  const block = Buffer.from("hello world");
+
+  const encodedPiece = encodePiece(pieceIndex, offset, block);
+  const result = decodePiece(encodedPiece);
+
+  expect(result.pieceIndex).toBe(pieceIndex);
+  expect(result.offset).toBe(offset);
+  expect(result.block.equals(block)).toBe(true);
+});
+
+test("Decodes cancel correctly", () => {
+  const index = 5;
+  const begin = 100;
+  const length = 1000;
+
+  const encoded = encodeCancel(index, begin, length);
+
+  const result = decodeCancel(encoded);
+
+  expect(result.requestPiece).toBe(index);
+  expect(result.startByte).toBe(begin);
+  expect(result.requestBytes).toBe(length);
+});
+
+test("decode manager works", () => {
+  const bitfield = Buffer.from([0b10100100, 0b00000001]);
+  const encoded = encodeBitfield(bitfield);
+  const decoded = decode(encoded);
+
+  expect("bitfield" in decoded && decoded.bitfield.equals(bitfield)).toBe(true);
 });
