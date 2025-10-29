@@ -33,6 +33,7 @@ export const getPeerList = async (
     if (decodedBuffer?.decodedValue?.["failure reason"]) {
       console.log("---FAILED---");
       console.log(
+        "REASON: ",
         decodedBuffer.decodedValue["failure reason"].toString("utf8")
       );
     }
