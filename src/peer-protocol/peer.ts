@@ -17,6 +17,8 @@ export class Peer {
   PEER_IP: string | null = null;
   clientInfoHash: Buffer | null = null;
   clientPeerId: Buffer | null = null;
+  buffer: Buffer = Buffer.alloc(0);
+  bitfield: Buffer = Buffer.alloc(0);
 
   constructor(peer: PeerReturnType, headerAssemblyResults: HeaderReturnType) {
     this.peer = peer;
@@ -47,11 +49,27 @@ export class Peer {
       console.log("Connected");
     });
 
+    this.socket.on("error", (err) => {
+      const nodeError = err as NodeJS.ErrnoException;
+      if (nodeError.code === "ECONNREFUSED") {
+        console.log(`Peer ${this.PEER_IP} refused connection`);
+        // Don't retry, move to next peer
+      } else if (nodeError.code === "ENETUNREACH") {
+      } else {
+        console.warn(err);
+      }
+    });
+
     this.socket.on("data", (data) => {
       console.log("Receiving some data");
       if (!this.handshakeDone) {
         const res = decodeHandshake(data);
         console.log("🤝 Handshake received:", res);
+
+        if (data.length > 68) {
+          const leftover = data.subarray(68);
+          this.buffer = Buffer.concat([this.buffer, leftover]);
+        }
 
         if (!this.clientInfoHash) {
           throw new Error("Client info hash is not initialized");
@@ -62,20 +80,41 @@ export class Peer {
           res.info_hash
         );
 
-        if (matchingHash === 0) {
-          // 0 is match, -1 and 1 is not matching
+        if (!matchingHash) {
           throw new Error("Hashes do not match");
         }
 
         this.handshakeDone = true;
-        this.socket?.write(encodeInterested());
       } else {
-        const parsed = this.parseMessage(data);
-        if (parsed && parsed.messageId !== undefined) {
-          const { messageId, result } = parsed;
-          if (messageId === 5) {
-            console.log("Bitfield!");
-            console.log(result);
+        this.buffer = Buffer.concat([this.buffer, data]);
+
+        while (this.buffer.length >= 4) {
+          // Read the first 4 bytes for length
+          const length = this.buffer.subarray(0, 4);
+          const convertedLength = length.readUInt32BE(0);
+          console.log("ConvertedLength:", convertedLength);
+
+          // Handle keep alive
+          if (convertedLength === 0) {
+            this.buffer = this.buffer.subarray(4);
+            continue;
+          }
+
+          if (this.buffer.length >= 4 + convertedLength) {
+            console.log("Extracting message");
+            const message = this.buffer.subarray(0, convertedLength + 4);
+            console.log("Message bytes:", message);
+
+            const parsed = decode(message);
+            console.log("First byte (should be message ID):", parsed?.id);
+
+            if (parsed.id === 5) {
+              //   this.bitfield = parsed.result;
+            }
+
+            this.buffer = this.buffer.subarray(4 + convertedLength);
+          } else {
+            break;
           }
         }
       }
@@ -86,25 +125,9 @@ export class Peer {
     });
   }
 
-  parseMessage(data: Buffer) {
-    if (data.length < 4) return; // wait for full message
-    const length = data.readUInt32BE(0);
-    if (length === 0) {
-      console.log("Keep-alive received");
-      return {};
-    }
-    const messageId = data.readUInt8(4);
-    const result = decode(data);
-    return { messageId, result };
-  }
-
   checkInfoHash = (clientHash: Buffer, peerHash: Buffer) => {
-    return Buffer.compare(clientHash, peerHash);
+    return clientHash.equals(peerHash);
   };
-
-  // Handle each message type
-  // Process the buffer
-  // Methods to request pieces
 }
 
 // TODO:

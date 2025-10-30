@@ -9,7 +9,10 @@ export const connect = (
 ) => {
   // TODO: Loop through all peers - testing on one for now
   const peer = new Peer(peerList[0], headerAssemblyResults);
-  console.log(peer);
+
+  const peers = peerList.forEach((peer, index) =>
+    index <= 5 ? new Peer(peer, headerAssemblyResults) : null
+  );
 };
 
 //TODO:
