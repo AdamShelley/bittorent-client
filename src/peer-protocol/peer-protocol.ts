@@ -167,7 +167,9 @@ export const decodeCancel = (buffer: Buffer) => {
   return { requestPiece, startByte, requestBytes };
 };
 
-export const decode = (buffer: Buffer) => {
+export const decode = (
+  buffer: Buffer
+): { messageType: string; id?: number; result?: any } => {
   const length = buffer.readUInt32BE(0);
   if (!length) return { messageType: "keep-alive" };
 
@@ -185,7 +187,7 @@ export const decode = (buffer: Buffer) => {
     case 4:
       return { messageType: "have", id: 4, result: decodeHave(buffer) };
     case 5:
-      return { messageType: "bitfield", id: 5, result: decodeHave(buffer) };
+      return { messageType: "bitfield", id: 5, result: decodeBitfield(buffer) };
     case 6:
       return { messageType: "request", id: 6, result: decodeRequest(buffer) };
     case 7:

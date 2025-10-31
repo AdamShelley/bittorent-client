@@ -42,108 +42,99 @@ export class Peer {
     this.socket = net.createConnection(this.PEER_PORT, this.PEER_IP, () => {
       console.log(`Connected to ${this.PEER_IP}:${this.PEER_PORT}`);
       this.socket?.write(handshake);
-      console.log("Handshake sent.");
     });
-
-    this.socket.on("connect", () => {
-      console.log("Connected");
-    });
-
-    this.socket.on("error", (err) => {
-      const nodeError = err as NodeJS.ErrnoException;
-      if (nodeError.code === "ECONNREFUSED") {
-        console.log(`Peer ${this.PEER_IP} refused connection`);
-        // Don't retry, move to next peer
-      } else if (nodeError.code === "ENETUNREACH") {
-      } else {
-        console.warn(err);
-      }
-    });
-
-    this.socket.on("data", (data) => {
-      console.log("Receiving some data");
-      if (!this.handshakeDone) {
-        const res = decodeHandshake(data);
-        console.log("🤝 Handshake received:", res);
-
-        if (data.length > 68) {
-          const leftover = data.subarray(68);
-          this.buffer = Buffer.concat([this.buffer, leftover]);
-        }
-
-        if (!this.clientInfoHash) {
-          throw new Error("Client info hash is not initialized");
-        }
-
-        const matchingHash = this.checkInfoHash(
-          this.clientInfoHash,
-          res.info_hash
-        );
-
-        if (!matchingHash) {
-          throw new Error("Hashes do not match");
-        }
-
-        this.handshakeDone = true;
-      } else {
-        this.buffer = Buffer.concat([this.buffer, data]);
-
-        while (this.buffer.length >= 4) {
-          // Read the first 4 bytes for length
-          const length = this.buffer.subarray(0, 4);
-          const convertedLength = length.readUInt32BE(0);
-          console.log("ConvertedLength:", convertedLength);
-
-          // Handle keep alive
-          if (convertedLength === 0) {
-            this.buffer = this.buffer.subarray(4);
-            continue;
-          }
-
-          if (this.buffer.length >= 4 + convertedLength) {
-            console.log("Extracting message");
-            const message = this.buffer.subarray(0, convertedLength + 4);
-            console.log("Message bytes:", message);
-
-            const parsed = decode(message);
-            console.log("First byte (should be message ID):", parsed?.id);
-
-            if (parsed.id === 5) {
-              //   this.bitfield = parsed.result;
-            }
-
-            this.buffer = this.buffer.subarray(4 + convertedLength);
-          } else {
-            break;
-          }
-        }
-      }
-    });
-
-    this.socket.on("error", (err) => {
-      console.warn(err);
-    });
+    this.socket.on("connect", () => console.log("Connected"));
+    this.socket.on("data", (data) => this.handleData(data));
+    this.socket.on("error", (err) => this.handleError(err));
   }
 
   checkInfoHash = (clientHash: Buffer, peerHash: Buffer) => {
     return clientHash.equals(peerHash);
   };
+
+  handleData = (data: Buffer) => {
+    console.log("Receiving some data");
+    if (!this.handshakeDone) {
+      const res = decodeHandshake(data);
+      console.log("🤝 Handshake received:", res);
+
+      if (data.length > 68) {
+        const leftover = data.subarray(68);
+        this.buffer = Buffer.concat([this.buffer, leftover]);
+      }
+
+      if (!this.clientInfoHash) {
+        throw new Error("Client info hash is not initialized");
+      }
+
+      const matchingHash = this.checkInfoHash(
+        this.clientInfoHash,
+        res.info_hash
+      );
+
+      if (!matchingHash) {
+        throw new Error("Hashes do not match");
+      }
+
+      this.handshakeDone = true;
+    } else {
+      this.buffer = Buffer.concat([this.buffer, data]);
+
+      while (this.buffer.length >= 4) {
+        // Read the first 4 bytes for length
+        const length = this.buffer.subarray(0, 4);
+        const convertedLength = length.readUInt32BE(0);
+
+        // Handle keep alive
+        if (convertedLength === 0) {
+          this.buffer = this.buffer.subarray(4);
+          continue;
+        }
+
+        if (this.buffer.length >= 4 + convertedLength) {
+          const message = this.buffer.subarray(0, convertedLength + 4);
+
+          const parsed = decode(message);
+          console.log("Message ID:", parsed?.id);
+
+          if (parsed.id === 5) {
+            if (parsed?.result?.bitfield) {
+              this.bitfield = parsed.result.bitfield;
+
+              // Send Interested
+              this.socket?.write(encodeInterested());
+
+              // Start requesting pieces
+            }
+          }
+
+          this.buffer = this.buffer.subarray(4 + convertedLength);
+        } else {
+          break;
+        }
+      }
+    }
+  };
+
+  handleError = (error: NodeJS.ErrnoException) => {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code === "ECONNREFUSED") {
+      console.log(`Peer ${this.PEER_IP} refused connection`);
+      // Don't retry, move to next peer
+    } else if (nodeError.code === "ENETUNREACH") {
+    } else {
+      console.warn(error);
+    }
+  };
+
+  hasPiece = (pieceIndex: number): boolean => {
+    const byteIndex = Math.floor(pieceIndex / 8);
+    if (byteIndex >= this.bitfield.length) return false;
+
+    const bitIndex = pieceIndex % 8;
+    const byte = this.bitfield[byteIndex];
+    const mask = 1 << (7 - bitIndex);
+
+    return (byte & mask) !== 0;
+  };
 }
-
-// TODO:
-// Once you have their bitfield
-// → Decide if there are pieces you don’t have.
-// → If yes → send interested message.
-// → If no → send not interested.
-
-// If they unchoke you
-// → You can now send request messages for specific piece blocks.
-// → Each request specifies: piece index, offset, length.
-
-// When data (piece) arrives
-// → Verify SHA-1 hash matches the one in the torrent’s info.
-// → Mark it as complete.
-// → Possibly send have messages to other peers.
-
-// Keep-alive
-// → Every 2 minutes or so, if no other messages are sent.
