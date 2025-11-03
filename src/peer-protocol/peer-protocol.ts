@@ -167,7 +167,9 @@ export const decodeCancel = (buffer: Buffer) => {
   return { requestPiece, startByte, requestBytes };
 };
 
-export const decode = (buffer: Buffer) => {
+export const decode = (
+  buffer: Buffer
+): { messageType: string; id?: number; result?: any } => {
   const length = buffer.readUInt32BE(0);
   if (!length) return { messageType: "keep-alive" };
 
@@ -175,23 +177,23 @@ export const decode = (buffer: Buffer) => {
 
   switch (bufferId) {
     case 0:
-      return { messageType: "choke" };
+      return { messageType: "choke", id: 0 };
     case 1:
-      return { messageType: "unchoke" };
+      return { messageType: "unchoke", id: 1 };
     case 2:
-      return { messageType: "interested" };
+      return { messageType: "interested", id: 2 };
     case 3:
-      return { messageType: "not-interested" };
+      return { messageType: "not-interested", id: 3 };
     case 4:
-      return decodeHave(buffer);
+      return { messageType: "have", id: 4, result: decodeHave(buffer) };
     case 5:
-      return decodeBitfield(buffer);
+      return { messageType: "bitfield", id: 5, result: decodeBitfield(buffer) };
     case 6:
-      return decodeRequest(buffer);
+      return { messageType: "request", id: 6, result: decodeRequest(buffer) };
     case 7:
-      return decodePiece(buffer);
+      return { messageType: "piece", id: 7, result: decodePiece(buffer) };
     case 8:
-      return decodeCancel(buffer);
+      return { messageType: "cancel", id: 8, result: decodeCancel(buffer) };
     default:
       return { messageType: "error" };
   }

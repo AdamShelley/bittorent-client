@@ -1,11 +1,14 @@
 import crypto from "crypto";
 
 interface DecodedValueType {
-  announce: Buffer;
-  originalInfo: any;
+  announce?: Buffer;
+  "announce-list"?: any[];
   info: {
-    length: number;
+    length?: number;
+    files?: Array<{ length: number }>;
+    [key: string]: any;
   };
+  _rawInfo?: Buffer;
 }
 
 export interface HeaderReturnType {
@@ -23,8 +26,62 @@ export const headerAssembly = (
   decodedValue: DecodedValueType,
   rawInfoBytes: Buffer
 ): HeaderReturnType => {
-  const announceURL = decodedValue.announce;
-  const length = decodedValue.info.length;
+  // Handle both 'announce' and 'announce-list'
+  let announceURL: Buffer;
+
+  if (decodedValue.announce) {
+    announceURL = decodedValue.announce;
+  } else if (
+    decodedValue["announce-list"] &&
+    decodedValue["announce-list"].length > 0
+  ) {
+    // Get first HTTP/HTTPS tracker from announce-list
+    const trackers = decodedValue["announce-list"];
+    let httpTracker = null;
+
+    for (const tier of trackers) {
+      const tracker = Array.isArray(tier) ? tier[0] : tier;
+      const trackerUrl = tracker.toString("utf8");
+
+      // Skip UDP trackers since we don't support them yet
+      if (
+        trackerUrl.startsWith("http://") ||
+        trackerUrl.startsWith("https://")
+      ) {
+        httpTracker = tracker;
+        break;
+      }
+    }
+
+    if (!httpTracker) {
+      throw new Error("No HTTP/HTTPS tracker found in announce-list");
+    }
+
+    announceURL = httpTracker;
+  } else {
+    throw new Error("Torrent has no announce URL or announce-list");
+  }
+
+  if (!decodedValue.info) {
+    throw new Error("Torrent file is missing 'info' dictionary");
+  }
+
+  // Handle both single-file and multi-file torrents
+  let length: number;
+  if (decodedValue.info.length !== undefined) {
+    // Single-file torrent
+    length = decodedValue.info.length;
+  } else if (decodedValue.info.files) {
+    // Multi-file torrent - sum all file lengths
+    length = decodedValue.info.files.reduce(
+      (sum: number, file: any) => sum + file.length,
+      0
+    );
+  } else {
+    throw new Error(
+      "Torrent info dictionary missing both 'length' and 'files'"
+    );
+  }
 
   const hashedInfo = crypto.createHash("sha1").update(rawInfoBytes).digest();
 

@@ -13,7 +13,8 @@ const bufferToHex = (buffer: Buffer) => {
 };
 
 export const getPeerList = async (
-  headerAssemblyResults: HeaderReturnType
+  headerAssemblyResults: HeaderReturnType,
+  announceList?: any[]
 ): Promise<PeerReturnType[]> => {
   const { url, info_hash, peer_id, port, uploaded, downloaded, left, compact } =
     headerAssemblyResults;
@@ -21,42 +22,82 @@ export const getPeerList = async (
   const info_hash_converted = bufferToHex(info_hash);
   const peer_id_converted = bufferToHex(peer_id);
 
-  const assembledURL = `${url}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}`;
+  // Build list of trackers to try
+  const trackersToTry = [url];
 
-  try {
-    const response = await fetch(assembledURL);
-    console.log("STATUS:", response.status);
-    const buffer = Buffer.from(await response.arrayBuffer());
+  if (announceList) {
+    for (const tier of announceList) {
+      const tracker = Array.isArray(tier) ? tier[0] : tier;
+      const trackerUrl = tracker.toString("utf8");
 
-    const decodedBuffer = decode(buffer, 0);
-
-    if (decodedBuffer?.decodedValue?.["failure reason"]) {
-      console.log("---FAILED---");
-      console.log(
-        decodedBuffer.decodedValue["failure reason"].toString("utf8")
-      );
+      // Only add HTTP/HTTPS trackers
+      if (
+        (trackerUrl.startsWith("http://") ||
+          trackerUrl.startsWith("https://")) &&
+        trackerUrl !== url
+      ) {
+        trackersToTry.push(trackerUrl);
+      }
     }
-
-    const peers = decodedBuffer?.decodedValue.peers;
-
-    const peerInfo = [];
-    // Loop through peers, 6 bytes at a time, first 4 are IP , last 2 are PORT
-    // console.log("Got ", peers.length / 6, " peers");
-    for (let i = 0; i < peers.length; i += 6) {
-      const peer = peers.subarray(i, i + 6);
-      const parsedPeer = parsePeer(peer);
-      // console.log(
-      //   `Peer ${peerInfo.length} is ip: ${parsedPeer.ip} port: ${parsedPeer.port}`
-      // );
-      peerInfo.push(parsedPeer);
-    }
-
-    return peerInfo;
-  } catch (error) {
-    console.error("Full error:", error);
-    console.error("URL:", assembledURL);
-    return [];
   }
+
+  console.log(`Trying ${trackersToTry.length} tracker(s)...`);
+
+  // Try each tracker until one works
+  for (const trackerUrl of trackersToTry) {
+    const assembledURL = `${trackerUrl}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}&numwant=50`;
+
+    try {
+      console.log(`📡 Trying tracker: ${trackerUrl}`);
+      const response = await fetch(assembledURL);
+      console.log("STATUS:", response.status);
+
+      if (response.status === 503) {
+        console.log("⚠️  Tracker rate-limiting, trying next...");
+        continue;
+      }
+
+      if (!response.ok) {
+        console.log(`❌ Tracker error ${response.status}, trying next...`);
+        continue;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const decodedBuffer = decode(buffer, 0);
+
+      if (decodedBuffer?.decodedValue?.["failure reason"]) {
+        console.log("---FAILED---");
+        console.log(
+          "REASON:",
+          decodedBuffer.decodedValue["failure reason"].toString("utf8")
+        );
+        continue;
+      }
+
+      const peers = decodedBuffer?.decodedValue.peers;
+
+      if (!peers || peers.length === 0) {
+        console.log("⚠️  Tracker returned no peers, trying next...");
+        continue;
+      }
+
+      const peerInfo = [];
+      for (let i = 0; i < peers.length; i += 6) {
+        const peer = peers.subarray(i, i + 6);
+        const parsedPeer = parsePeer(peer);
+        peerInfo.push(parsedPeer);
+      }
+
+      console.log(`✅ Got ${peerInfo.length} peers from ${trackerUrl}`);
+      return peerInfo;
+    } catch (error) {
+      console.log(`❌ Tracker ${trackerUrl} failed:`, (error as Error).message);
+      continue;
+    }
+  }
+
+  console.error("❌ All trackers failed");
+  return [];
 };
 
 const parsePeer = (peerBuffer: Buffer) => {
