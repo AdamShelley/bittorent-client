@@ -6,7 +6,7 @@ import {
   getPeerList,
   type PeerReturnType,
 } from "../http-requests/contact-tracker";
-import { Peer } from "../peer-protocol/Peer";
+import { Peer } from "../peer-protocol/peer";
 
 const BLOCK_SIZE = 16384;
 
@@ -232,7 +232,6 @@ export class Coordinator {
     }
   };
 
-  // In Coordinator.ts
   assignPieceToDownload = (peer: Peer) => {
     for (const pieceIndex of this.piecesNeeded) {
       const peerHasPiece = peer.hasPiece(pieceIndex);

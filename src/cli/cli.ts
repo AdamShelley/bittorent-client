@@ -57,11 +57,6 @@ const peerList = await getPeerList(
 if (!peerList) throw new Error("Getting peer list failed");
 
 // Connect to peers, request pieces etc
-const peerConnection = connect(
-  peerList,
-  headerAssemblyResults,
-  infoSection.decodedValue
-);
-console.log(peerConnection);
+connect(peerList, headerAssemblyResults, infoSection.decodedValue);
 
 // TODO: Bonus: Add support for seeding files, magnet URL, trackers, long running client to peer multiple files at a time

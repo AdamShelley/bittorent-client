@@ -161,6 +161,7 @@ export class Peer extends EventEmitter {
       this.requestQueue.length > 0
     ) {
       const req = this.requestQueue.shift()!;
+      if (!req) continue;
       this.socket?.write(encodeRequest(req.pieceIndex, req.offset, req.length));
       this.pendingRequests++;
     }
