@@ -32,31 +32,36 @@ try {
 const searchString = "4:info";
 const position = buffer.indexOf(searchString);
 const infoStart = position + searchString.length;
-
 const decoded = decode(buffer, 0);
 const infoSection = decode(buffer, infoStart);
 
 if (!decoded) throw new Error("Decoding failed");
 if (!infoSection) throw new Error("No info section");
+
 const infoEnd = infoSection.index;
 const rawInfoBytes = buffer.subarray(infoStart, infoEnd);
 
 // ASSEMBLE HEADERS
-const headerAssesmblyResults = headerAssembly(
+const headerAssemblyResults = headerAssembly(
   decoded.decodedValue,
   rawInfoBytes
 );
-if (!headerAssesmblyResults) throw new Error("Assembling header failed");
+
+if (!headerAssemblyResults) throw new Error("Assembling header failed");
 
 // GET PEER LIST, IDS, PORTS
-const peerList = await getPeerList(headerAssesmblyResults);
+const peerList = await getPeerList(
+  headerAssemblyResults,
+  decoded.decodedValue["announce-list"]
+);
 if (!peerList) throw new Error("Getting peer list failed");
 
-// TODO: Connect to all the peers, perform handshake, get bitfield - concurrently
-const peerConnection = connect(peerList, headerAssesmblyResults);
+// Connect to peers, request pieces etc
+const peerConnection = connect(
+  peerList,
+  headerAssemblyResults,
+  infoSection.decodedValue
+);
 console.log(peerConnection);
 
-// TODO: Create a way to track all pieces
-// TODO: Download the pieces
-// TODO: Assemble the file, save, shutdown client
 // TODO: Bonus: Add support for seeding files, magnet URL, trackers, long running client to peer multiple files at a time

@@ -36,12 +36,24 @@ const decodeDictionary = (encodedString: Buffer, start: number) => {
     if (!keyResult) throw new Error("Failed to decode dictionary key");
     currentPosition = keyResult.index;
 
+    const key = keyResult.decodedValue.toString("utf8");
+
+    const valueStartPosition = currentPosition;
+
     // Decode value
     let valueResult = decode(encodedString, currentPosition);
+
     if (!valueResult) throw new Error("Failed to decode dictionary value");
     currentPosition = valueResult.index;
 
-    object[keyResult.decodedValue.toString("utf8")] = valueResult.decodedValue;
+    if (key === "info") {
+      object._rawInfo = encodedString.subarray(
+        valueStartPosition,
+        currentPosition
+      );
+    }
+
+    object[key] = valueResult.decodedValue;
   }
   return { decodedValue: object, index: currentPosition + 1 };
 };
@@ -51,13 +63,9 @@ const decodeList = (
   start: number
 ): { decodedValue: any[]; index: number } => {
   let array = [];
-  let currentPosition = start;
+  let currentPosition = start + 1; // Skip the initial 'l'
 
   while (currentPosition < encodedString.length) {
-    if (encodedString[currentPosition] === "l".charCodeAt(0)) {
-      currentPosition++;
-    }
-
     if (encodedString[currentPosition] === "e".charCodeAt(0)) {
       return { decodedValue: array, index: currentPosition + 1 };
     }
@@ -69,7 +77,7 @@ const decodeList = (
     currentPosition = result.index;
   }
 
-  return { decodedValue: array, index: currentPosition };
+  throw new Error("List not properly terminated");
 };
 
 const decodeString = (encodedString: Buffer, start: number) => {

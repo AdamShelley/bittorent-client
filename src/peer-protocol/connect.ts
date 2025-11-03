@@ -1,13 +1,12 @@
 import type { PeerReturnType } from "../http-requests/contact-tracker";
 
 import type { HeaderReturnType } from "../header-assembly/headers";
-import { Peer } from "./peer";
+import { Coordinator } from "../coordinator/Coordinator";
 
 export const connect = (
   peerList: PeerReturnType[],
-  headerAssemblyResults: HeaderReturnType
+  headerAssemblyResults: HeaderReturnType,
+  decodedInfoSection: any
 ) => {
-  const peers = peerList.forEach((peer, index) =>
-    index <= 5 ? new Peer(peer, headerAssemblyResults) : null
-  );
+  new Coordinator(peerList, headerAssemblyResults, decodedInfoSection);
 };
