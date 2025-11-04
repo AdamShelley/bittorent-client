@@ -4,6 +4,7 @@ import type { PeerReturnType } from "../http-requests/contact-tracker";
 import {
   decode,
   decodeHandshake,
+  encodeCancel,
   encodeHandshake,
   encodeInterested,
   encodeRequest,
@@ -31,7 +32,11 @@ export class Peer extends EventEmitter {
   requestQueue: Array<{ pieceIndex: number; offset: number; length: number }> =
     [];
   maxPipelineRequests: number = 5;
-  pendingRequests: number = 0;
+  pendingRequests: Array<{
+    pieceIndex: number;
+    offset: number;
+    length: number;
+  }> = [];
 
   constructor(peer: PeerReturnType, headerAssemblyResults: HeaderReturnType) {
     super();
@@ -135,7 +140,16 @@ export class Peer extends EventEmitter {
               this.markPieceAsAvailable(pieceIndex);
             }
           } else if (parsed.id === 7) {
-            this.pendingRequests--;
+            this.pendingRequests = this.pendingRequests.filter((block) => {
+              if (
+                !(
+                  block.pieceIndex === parsed.result.pieceIndex &&
+                  block.offset === parsed.result.offset
+                )
+              ) {
+                return block;
+              }
+            });
 
             this.emit("piece", {
               pieceIndex: parsed.result.pieceIndex,
@@ -157,13 +171,17 @@ export class Peer extends EventEmitter {
 
   fillPipeline() {
     while (
-      this.pendingRequests < this.maxPipelineRequests &&
+      this.pendingRequests.length < this.maxPipelineRequests &&
       this.requestQueue.length > 0
     ) {
       const req = this.requestQueue.shift()!;
       if (!req) continue;
       this.socket?.write(encodeRequest(req.pieceIndex, req.offset, req.length));
-      this.pendingRequests++;
+      this.pendingRequests.push({
+        pieceIndex: req.pieceIndex,
+        offset: req.offset,
+        length: req.length,
+      });
     }
   }
 
@@ -208,5 +226,28 @@ export class Peer extends EventEmitter {
     // Set the bit
     const mask = 1 << (7 - bitIndex);
     this.bitfield[byteIndex] |= mask;
+  };
+
+  cancelPiece = (pieceIndex: number) => {
+    this.requestQueue = this.requestQueue.filter((block) => {
+      if (block.pieceIndex === pieceIndex) {
+        this.socket?.write(
+          encodeCancel(block.pieceIndex, block.offset, block.length)
+        );
+        return false;
+      }
+      return true;
+    });
+
+    this.pendingRequests = this.pendingRequests.filter((block) => {
+      if (block.pieceIndex === pieceIndex) {
+        this.socket?.write(
+          encodeCancel(block.pieceIndex, block.offset, block.length)
+        );
+        return false;
+      }
+
+      return true;
+    });
   };
 }

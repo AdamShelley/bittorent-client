@@ -35,6 +35,10 @@ export class Coordinator {
   outputPath: string = "";
   trackerInterval: number = 1800;
 
+  isEndgameMode: boolean = false;
+  peerPieces: Map<number, Set<Peer>> = new Map();
+  receivedBlocks: Map<number, Set<number>> = new Map();
+
   constructor(
     peerList: PeerReturnType[],
     headerAssemblyResults: HeaderReturnType,
@@ -122,6 +126,18 @@ export class Coordinator {
     }
     this.bytesDownloaded += pieceData.block.length;
 
+    if (!this.receivedBlocks.has(pieceData.pieceIndex)) {
+      this.receivedBlocks.set(pieceData.pieceIndex, new Set());
+    }
+
+    const blocksForThisPiece = this.receivedBlocks.get(pieceData.pieceIndex)!;
+    if (blocksForThisPiece.has(pieceData.offset)) {
+      // Duplicate block! Ignore it
+      return;
+    }
+
+    blocksForThisPiece.add(pieceData.offset);
+
     if (!this.pieceBuffers.has(pieceData.pieceIndex)) {
       const bufferSize =
         pieceData.pieceIndex === this.totalPieces - 1
@@ -175,6 +191,7 @@ export class Coordinator {
         this.inProgressPieces.delete(pieceData.pieceIndex);
         this.pieceBuffers.delete(pieceData.pieceIndex);
         this.pieceBlockCounts.delete(pieceData.pieceIndex);
+        this.receivedBlocks.delete(pieceData.pieceIndex);
         this.assignPieceToDownload(peer);
         return;
       }
@@ -192,12 +209,32 @@ export class Coordinator {
         pieceData.pieceIndex * this.pieceLength
       );
 
+      // If endgame mode:
+      if (this.isEndgameMode && this.peerPieces.has(pieceData.pieceIndex)) {
+        console.log("is endgame mode, cancelling other peers peice");
+        const peersWorkingOnThisPiece = this.peerPieces.get(
+          pieceData.pieceIndex
+        );
+
+        if (!peersWorkingOnThisPiece) return;
+
+        peersWorkingOnThisPiece.forEach((p) => {
+          if (p !== peer) {
+            p.cancelPiece(pieceData.pieceIndex);
+          }
+        });
+
+        // Clean up
+        this.peerPieces.delete(pieceData.pieceIndex);
+      }
+
       // Update tracking
       this.inProgressPieces.delete(pieceData.pieceIndex);
       this.completedPieces.add(pieceData.pieceIndex);
       this.piecesNeeded.delete(pieceData.pieceIndex);
       this.pieceBuffers.delete(pieceData.pieceIndex);
       this.pieceBlockCounts.delete(pieceData.pieceIndex);
+      this.receivedBlocks.delete(pieceData.pieceIndex);
 
       const activePeers = this.peers.filter((p) => !p.peerChoking).length;
       const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000;
@@ -220,6 +257,10 @@ export class Coordinator {
         JSON.stringify([...this.completedPieces])
       );
 
+      if (this.piecesNeeded.size <= 20) {
+        this.isEndgameMode = true;
+      }
+
       if (this.completedPieces.size === this.totalPieces) {
         fs.closeSync(this.outputFile!);
         console.log("✅ Download complete!", this.outputPath);
@@ -236,7 +277,10 @@ export class Coordinator {
     for (const pieceIndex of this.piecesNeeded) {
       const peerHasPiece = peer.hasPiece(pieceIndex);
 
-      if (!this.inProgressPieces.has(pieceIndex) && peerHasPiece) {
+      if (
+        peerHasPiece &&
+        (this.isEndgameMode || !this.inProgressPieces.has(pieceIndex))
+      ) {
         this.inProgressPieces.add(pieceIndex);
 
         const pieceSize =
@@ -244,7 +288,10 @@ export class Coordinator {
             ? this.totalFileSize - pieceIndex * this.pieceLength
             : this.pieceLength;
 
-        const blocksToRequest = Math.min(5, Math.ceil(pieceSize / BLOCK_SIZE));
+        const totalBlocks = Math.ceil(pieceSize / BLOCK_SIZE);
+        const blocksToRequest = this.isEndgameMode
+          ? totalBlocks
+          : Math.min(5, totalBlocks);
 
         for (let i = 0; i < blocksToRequest; i++) {
           const offset = i * BLOCK_SIZE;
@@ -252,7 +299,14 @@ export class Coordinator {
           peer.requestPiece(pieceIndex, offset, blockSize);
         }
 
-        return;
+        if (!this.peerPieces.has(pieceIndex)) {
+          this.peerPieces.set(pieceIndex, new Set());
+        }
+        this.peerPieces.get(pieceIndex)!.add(peer);
+
+        if (!this.isEndgameMode) {
+          return;
+        }
       }
     }
   };
@@ -317,8 +371,7 @@ export class Coordinator {
 }
 
 // TODO:
-// Track which peer is downloading which piece (for better disconnect handling)
-// Pipelining (request multiple blocks ahead)
+// after download check all files against hash?
 // Rarest-first piece selection strategy
 // Upload/seeding support
 // Magnet link support
