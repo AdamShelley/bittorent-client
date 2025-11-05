@@ -9,6 +9,7 @@ import {
 import { Peer } from "../peer-protocol/peer";
 
 const BLOCK_SIZE = 16384;
+const MAX_UNCHOKED_PEERS = 3;
 
 export class Coordinator {
   torrent: any;
@@ -96,7 +97,7 @@ export class Coordinator {
     if (!this.peerList || !this.peerList.length || !this.headers) return;
 
     // Connect to up to 50 peers
-    const peersToConnect = this.peerList.slice(0, 50);
+    const peersToConnect = this.peerList.slice(0, 100);
 
     peersToConnect.forEach((peer) =>
       this.peers.push(new Peer(peer, this.headers!))
@@ -110,6 +111,7 @@ export class Coordinator {
     peer.on("unchoke", () => this.onPeerUnchoked(peer));
     peer.on("piece", (pieceData) => this.onPeerReceivePiece(peer, pieceData));
     peer.on("disconnected", () => this.onPeerDisconnected(peer));
+    peer.on("request", (pieceData) => this.peerRequestPiece(peer, pieceData));
   }
 
   onPeerUnchoked = (peer: Peer) => {
@@ -211,7 +213,7 @@ export class Coordinator {
 
       // If endgame mode:
       if (this.isEndgameMode && this.peerPieces.has(pieceData.pieceIndex)) {
-        console.log("is endgame mode, cancelling other peers peice");
+        // console.log("is endgame mode, cancelling other peers peice");
         const peersWorkingOnThisPiece = this.peerPieces.get(
           pieceData.pieceIndex
         );
@@ -343,7 +345,7 @@ export class Coordinator {
 
   scheduleTrackerAnnounce = () => {
     setInterval(async () => {
-      console.log("🔄 Re-announcing to tracker for fresh peers...");
+      // console.log("🔄 Re-announcing to tracker for fresh peers...");
 
       if (!this.headers) return;
 
@@ -367,6 +369,50 @@ export class Coordinator {
         });
       }
     }, this.trackerInterval * 1000);
+  };
+
+  peerRequestPiece = (
+    peer: Peer,
+    requestPiece: { pieceIndex: number; offset: number; length: number }
+  ) => {
+    // Read the block from your file
+    if (!this.completedPieces.has(requestPiece.pieceIndex)) {
+      return;
+    }
+
+    if (!this.outputFile) return;
+
+    const buffer = Buffer.alloc(requestPiece.length);
+    const position =
+      requestPiece.pieceIndex * this.pieceLength + requestPiece.offset;
+
+    fs.read(
+      this.outputFile,
+      buffer,
+      0,
+      requestPiece.length,
+      position,
+      (err, bytesRead) => {
+        if (err) {
+          console.error(
+            `Error reading piece ${requestPiece.pieceIndex}:`,
+            err.message
+          );
+          return;
+        }
+
+        if (bytesRead !== requestPiece.length) {
+          console.error(
+            `Short read: expected ${requestPiece.length}, got ${bytesRead}`
+          );
+          return;
+        }
+
+        console.log("Sending a piece to a peer");
+
+        peer.sendPiece(requestPiece.pieceIndex, requestPiece.offset, buffer);
+      }
+    );
   };
 }
 

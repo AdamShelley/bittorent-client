@@ -4,9 +4,11 @@ import type { PeerReturnType } from "../http-requests/contact-tracker";
 import {
   decode,
   decodeHandshake,
+  encodeBitfield,
   encodeCancel,
   encodeHandshake,
   encodeInterested,
+  encodePiece,
   encodeRequest,
 } from "./peer-protocol";
 import type { HeaderReturnType } from "../header-assembly/headers";
@@ -31,7 +33,7 @@ export class Peer extends EventEmitter {
 
   requestQueue: Array<{ pieceIndex: number; offset: number; length: number }> =
     [];
-  maxPipelineRequests: number = 5;
+  maxPipelineRequests: number = 15;
   pendingRequests: Array<{
     pieceIndex: number;
     offset: number;
@@ -100,7 +102,11 @@ export class Peer extends EventEmitter {
       }
 
       this.handshakeDone = true;
+
+      // TODO: Send my bitfield,
+
       this.socket?.write(encodeInterested());
+
       this.amInterested = true;
     } else {
       this.buffer = Buffer.concat([this.buffer, data]);
@@ -127,11 +133,11 @@ export class Peer extends EventEmitter {
               this.bitfield = parsed.result.bitfield;
             }
           } else if (parsed.id === 1) {
-            console.log("📣 Received UNCHOKE from peer");
+            // console.log("📣 Received UNCHOKE from peer");
             this.emit("unchoke");
             this.peerChoking = false;
           } else if (parsed.id === 0) {
-            console.log("🚫 Received CHOKE from peer");
+            // console.log("🚫 Received CHOKE from peer");
             this.peerChoking = true;
           } else if (parsed.id === 4) {
             // Handle 'have' messages - update bitfield
@@ -139,6 +145,13 @@ export class Peer extends EventEmitter {
             if (pieceIndex !== undefined) {
               this.markPieceAsAvailable(pieceIndex);
             }
+          } else if (parsed.id === 6) {
+            // For Seeding
+            this.socket?.emit("request", {
+              pieceIndex: parsed.result.pieceIndex,
+              offset: parsed.result.offset,
+              block: parsed.result.block,
+            });
           } else if (parsed.id === 7) {
             this.pendingRequests = this.pendingRequests.filter((block) => {
               if (
@@ -227,6 +240,11 @@ export class Peer extends EventEmitter {
     const mask = 1 << (7 - bitIndex);
     this.bitfield[byteIndex] |= mask;
   };
+
+  sendPiece(pieceIndex: number, offset: number, block: Buffer) {
+    const message = encodePiece(pieceIndex, offset, block);
+    this.socket?.write(message);
+  }
 
   cancelPiece = (pieceIndex: number) => {
     this.requestQueue = this.requestQueue.filter((block) => {

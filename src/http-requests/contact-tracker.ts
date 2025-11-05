@@ -48,9 +48,9 @@ export const getPeerList = async (
     const assembledURL = `${trackerUrl}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}&numwant=50`;
 
     try {
-      console.log(`📡 Trying tracker: ${trackerUrl}`);
+      // console.log(`📡 Trying tracker: ${trackerUrl}`);
       const response = await fetch(assembledURL);
-      console.log("STATUS:", response.status);
+      // console.log("STATUS:", response.status);
 
       if (response.status === 503) {
         console.log("⚠️  Tracker rate-limiting, trying next...");
