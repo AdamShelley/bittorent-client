@@ -5,6 +5,7 @@ import {
   decode,
   decodeHandshake,
   encodeBitfield,
+  encodeUnchoke,
   encodeCancel,
   encodeHandshake,
   encodeInterested,
@@ -17,6 +18,8 @@ import EventEmitter from "events";
 export class Peer extends EventEmitter {
   peer: PeerReturnType | null = null;
   socket: Socket | null = null;
+  clientBitfield: Set<number> | null = null;
+  totalPieces: number = 0;
   handshakeDone: boolean = false;
   PEER_PORT: number | null = null;
   PEER_IP: string | null = null;
@@ -24,7 +27,7 @@ export class Peer extends EventEmitter {
   clientPeerId: Buffer | null = null;
   buffer: Buffer = Buffer.alloc(0);
   bitfield: Buffer = Buffer.alloc(0);
-
+  clientBitfieldBuffer: Buffer = Buffer.alloc(0);
   //   Statuses
   amChoking: boolean = true;
   amInterested: boolean = false;
@@ -40,13 +43,20 @@ export class Peer extends EventEmitter {
     length: number;
   }> = [];
 
-  constructor(peer: PeerReturnType, headerAssemblyResults: HeaderReturnType) {
+  constructor(
+    peer: PeerReturnType,
+    headerAssemblyResults: HeaderReturnType,
+    completedPieces: Set<number>,
+    totalPieces: number
+  ) {
     super();
     this.peer = peer;
     this.PEER_IP = peer.ip;
     this.PEER_PORT = peer.port;
     this.clientInfoHash = headerAssemblyResults.info_hash;
     this.clientPeerId = headerAssemblyResults.peer_id;
+    this.totalPieces = totalPieces;
+    this.clientBitfield = completedPieces;
 
     this.connect();
   }
@@ -103,7 +113,11 @@ export class Peer extends EventEmitter {
 
       this.handshakeDone = true;
 
-      // TODO: Send my bitfield,
+      const encodedBitfield = encodeBitfield(
+        this.constructBitfield(this.clientBitfield!, this.totalPieces)
+      );
+      console.log("Sending encoded bitfield: ", encodedBitfield);
+      this.socket?.write(encodedBitfield);
 
       this.socket?.write(encodeInterested());
 
@@ -128,7 +142,15 @@ export class Peer extends EventEmitter {
           const parsed = decode(message);
           // console.log("Message ID:", parsed?.id);
 
-          if (parsed.id === 5) {
+          if (parsed.id === 2) {
+            // Interested
+            this.emit("interested");
+            this.peerInterested = true;
+          } else if (parsed.id === 3) {
+            // Not interested
+            this.emit("not-interested");
+            this.peerInterested = false;
+          } else if (parsed.id === 5) {
             if (parsed?.result?.bitfield) {
               this.bitfield = parsed.result.bitfield;
             }
@@ -147,7 +169,7 @@ export class Peer extends EventEmitter {
             }
           } else if (parsed.id === 6) {
             // For Seeding
-            this.socket?.emit("request", {
+            this.emit("request", {
               pieceIndex: parsed.result.pieceIndex,
               offset: parsed.result.offset,
               block: parsed.result.block,
@@ -246,6 +268,11 @@ export class Peer extends EventEmitter {
     this.socket?.write(message);
   }
 
+  encodeUnchokeHelper = () => {
+    const unchoked = encodeUnchoke();
+    this.socket?.write(unchoked);
+  };
+
   cancelPiece = (pieceIndex: number) => {
     this.requestQueue = this.requestQueue.filter((block) => {
       if (block.pieceIndex === pieceIndex) {
@@ -267,5 +294,30 @@ export class Peer extends EventEmitter {
 
       return true;
     });
+  };
+
+  constructBitfield = (
+    completedPieces: Set<number>,
+    totalPieces: number
+  ): Buffer => {
+    const bytesNeeded = Math.ceil(totalPieces / 8);
+    const buffer = Buffer.alloc(bytesNeeded);
+
+    completedPieces.forEach((piece) => {
+      this.setBitInBuffer(buffer, piece);
+    });
+
+    return buffer;
+  };
+
+  setBitInBuffer = (buffer: Buffer, pieceIndex: number) => {
+    const byteIndex = Math.floor(pieceIndex / 8);
+    const bitIndex = pieceIndex % 8;
+
+    // Set the bit
+    const mask = 1 << (7 - bitIndex);
+    buffer[byteIndex] |= mask;
+
+    return buffer;
   };
 }

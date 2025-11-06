@@ -40,6 +40,8 @@ export class Coordinator {
   peerPieces: Map<number, Set<Peer>> = new Map();
   receivedBlocks: Map<number, Set<number>> = new Map();
 
+  interestedPeers: Set<Peer> = new Set();
+
   constructor(
     peerList: PeerReturnType[],
     headerAssemblyResults: HeaderReturnType,
@@ -100,7 +102,9 @@ export class Coordinator {
     const peersToConnect = this.peerList.slice(0, 100);
 
     peersToConnect.forEach((peer) =>
-      this.peers.push(new Peer(peer, this.headers!))
+      this.peers.push(
+        new Peer(peer, this.headers!, this.completedPieces, this.totalPieces)
+      )
     );
 
     console.log(`Connecting to ${this.peers.length} peers...`);
@@ -112,11 +116,21 @@ export class Coordinator {
     peer.on("piece", (pieceData) => this.onPeerReceivePiece(peer, pieceData));
     peer.on("disconnected", () => this.onPeerDisconnected(peer));
     peer.on("request", (pieceData) => this.peerRequestPiece(peer, pieceData));
+    peer.on("interested", () => this.onPeerInterested(peer));
+    peer.on("not-interested", () => this.onPeerNotInterested(peer));
   }
 
   onPeerUnchoked = (peer: Peer) => {
     // Find a piece that's needed AND not in-progress AND the peer has
     return this.assignPieceToDownload(peer);
+  };
+
+  onPeerInterested = (peer: Peer) => {
+    this.interestedPeers?.add(peer);
+  };
+
+  onPeerNotInterested = (peer: Peer) => {
+    this.interestedPeers?.delete(peer);
   };
 
   onPeerReceivePiece = (
@@ -336,7 +350,12 @@ export class Coordinator {
         .filter((p) => !existingIPs.has(`${p.ip}:${p.port}`))
         .slice(0, 10)
         .forEach((peerInfo) => {
-          const newPeer = new Peer(peerInfo, this.headers!);
+          const newPeer = new Peer(
+            peerInfo,
+            this.headers!,
+            this.completedPieces,
+            this.totalPieces
+          );
           this.attachListeners(newPeer);
           this.peers.push(newPeer);
         });
@@ -363,7 +382,12 @@ export class Coordinator {
         console.log(`✨ Found ${freshPeers.length} new peers`);
 
         freshPeers.slice(0, 20).forEach((peer) => {
-          const newPeer = new Peer(peer, this.headers!);
+          const newPeer = new Peer(
+            peer,
+            this.headers!,
+            this.completedPieces,
+            this.totalPieces
+          );
           this.attachListeners(newPeer);
           this.peers.push(newPeer);
         });
