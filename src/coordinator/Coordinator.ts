@@ -41,6 +41,7 @@ export class Coordinator {
   receivedBlocks: Map<number, Set<number>> = new Map();
 
   interestedPeers: Set<Peer> = new Set();
+  unchokedPeers: Set<Peer> = new Set();
 
   constructor(
     peerList: PeerReturnType[],
@@ -92,6 +93,12 @@ export class Coordinator {
     }
 
     this.startPeerConnection();
+    this.unchokeRotation();
+
+    setInterval(() => {
+      this.unchokeRotation();
+    }, 30 * 1000);
+
     this.scheduleTrackerAnnounce();
   }
 
@@ -126,6 +133,7 @@ export class Coordinator {
   };
 
   onPeerInterested = (peer: Peer) => {
+    console.log(peer, " is interested");
     this.interestedPeers?.add(peer);
   };
 
@@ -252,6 +260,10 @@ export class Coordinator {
       this.pieceBlockCounts.delete(pieceData.pieceIndex);
       this.receivedBlocks.delete(pieceData.pieceIndex);
 
+      this.peers.forEach((peer) => {
+        peer.sendHave(pieceData.pieceIndex);
+      });
+
       const activePeers = this.peers.filter((p) => !p.peerChoking).length;
       const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000;
       const speedMBps = this.bytesDownloaded / elapsedSeconds / (1024 * 1024);
@@ -332,6 +344,8 @@ export class Coordinator {
 
     // Remove from active peers
     this.peers = this.peers.filter((p) => p !== peer);
+    this.interestedPeers.delete(peer);
+    this.unchokedPeers.delete(peer);
 
     // If we have fewer than 20 active peers, try to get more
     const activePeers = this.peers.filter((p) => !p.peerChoking).length;
@@ -437,6 +451,20 @@ export class Coordinator {
         peer.sendPiece(requestPiece.pieceIndex, requestPiece.offset, buffer);
       }
     );
+  };
+
+  unchokeRotation = () => {
+    const interestedPeersArray = Array.from(this.interestedPeers);
+    for (let i = 0; i < interestedPeersArray.length; i++) {
+      const peer = interestedPeersArray[i];
+      if (peer.amChoking) {
+        peer.encodeUnchokeHelper();
+        this.unchokedPeers.add(peer);
+        if (this.unchokedPeers.size >= MAX_UNCHOKED_PEERS) {
+          return;
+        }
+      }
+    }
   };
 }
 

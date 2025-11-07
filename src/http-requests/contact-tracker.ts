@@ -37,6 +37,8 @@ export const getPeerList = async (
         trackerUrl !== url
       ) {
         trackersToTry.push(trackerUrl);
+      } else {
+        console.log("Tracker is UDP");
       }
     }
   }

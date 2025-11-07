@@ -11,6 +11,7 @@ import {
   encodeInterested,
   encodePiece,
   encodeRequest,
+  encodeHave,
 } from "./peer-protocol";
 import type { HeaderReturnType } from "../header-assembly/headers";
 import EventEmitter from "events";
@@ -90,38 +91,40 @@ export class Peer extends EventEmitter {
 
   handleData = (data: Buffer) => {
     if (!this.handshakeDone) {
-      const res = decodeHandshake(data);
-      // console.log("🤝 Handshake received:", res);
+      try {
+        const res = decodeHandshake(data);
+        // console.log("🤝 Handshake received:", res);
 
-      if (data.length > 68) {
-        const leftover = data.subarray(68);
-        this.buffer = Buffer.concat([this.buffer, leftover]);
+        if (data.length > 68) {
+          const leftover = data.subarray(68);
+          this.buffer = Buffer.concat([this.buffer, leftover]);
+        }
+
+        if (!this.clientInfoHash) {
+          throw new Error("Client info hash is not initialized");
+        }
+
+        const matchingHash = this.checkInfoHash(
+          this.clientInfoHash,
+          res.info_hash
+        );
+
+        if (!matchingHash) {
+          throw new Error("Hashes do not match");
+        }
+
+        this.handshakeDone = true;
+
+        const encodedBitfield = encodeBitfield(
+          this.constructBitfield(this.clientBitfield!, this.totalPieces)
+        );
+        this.socket?.write(encodedBitfield);
+        this.socket?.write(encodeInterested());
+
+        this.amInterested = true;
+      } catch (e) {
+        console.warn(e);
       }
-
-      if (!this.clientInfoHash) {
-        throw new Error("Client info hash is not initialized");
-      }
-
-      const matchingHash = this.checkInfoHash(
-        this.clientInfoHash,
-        res.info_hash
-      );
-
-      if (!matchingHash) {
-        throw new Error("Hashes do not match");
-      }
-
-      this.handshakeDone = true;
-
-      const encodedBitfield = encodeBitfield(
-        this.constructBitfield(this.clientBitfield!, this.totalPieces)
-      );
-      console.log("Sending encoded bitfield: ", encodedBitfield);
-      this.socket?.write(encodedBitfield);
-
-      this.socket?.write(encodeInterested());
-
-      this.amInterested = true;
     } else {
       this.buffer = Buffer.concat([this.buffer, data]);
 
@@ -271,6 +274,7 @@ export class Peer extends EventEmitter {
   encodeUnchokeHelper = () => {
     const unchoked = encodeUnchoke();
     this.socket?.write(unchoked);
+    this.amChoking = false;
   };
 
   cancelPiece = (pieceIndex: number) => {
@@ -319,5 +323,10 @@ export class Peer extends EventEmitter {
     buffer[byteIndex] |= mask;
 
     return buffer;
+  };
+
+  sendHave = (pieceIndex: number) => {
+    const haveMessage = encodeHave(pieceIndex);
+    this.socket?.write(haveMessage);
   };
 }
