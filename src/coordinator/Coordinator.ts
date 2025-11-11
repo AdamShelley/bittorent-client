@@ -22,6 +22,8 @@ export class Coordinator {
   bytesDownloaded: number = 0;
   downloadStartTime: number = 0;
 
+  lastProgressLog: number = 0;
+
   peers: Peer[] = [];
 
   completedPieces: Set<number> = new Set();
@@ -72,9 +74,6 @@ export class Coordinator {
     const fileExists = fs.existsSync(this.outputPath);
     this.outputFile = fs.openSync(this.outputPath, fileExists ? "r+" : "w");
 
-    console.log(`📁 Download folder: ${this.outputFolder}`);
-    console.log(`📄 Output file: ${this.outputPath}`);
-
     // Resume file path (in the same folder as the download)
     const resumeFilePath = path.join(this.outputFolder, ".resume.json");
 
@@ -83,7 +82,6 @@ export class Coordinator {
       completed.forEach((pieceIndex: number) =>
         this.completedPieces.add(pieceIndex)
       );
-      console.log(`📋 Resuming: ${completed.length} pieces already downloaded`);
     }
 
     for (let i = 0; i < this.totalPieces; i++) {
@@ -113,7 +111,6 @@ export class Coordinator {
         new Peer(peer, this.headers!, this.completedPieces, this.totalPieces)
       )
     );
-
     console.log(`Connecting to ${this.peers.length} peers...`);
     this.peers.forEach((peer: Peer) => this.attachListeners(peer));
   };
@@ -133,7 +130,8 @@ export class Coordinator {
   };
 
   onPeerInterested = (peer: Peer) => {
-    console.log(peer, " is interested");
+    console.log(`> Peer ${peer.PEER_IP} is interested in our pieces`);
+
     this.interestedPeers?.add(peer);
   };
 
@@ -210,7 +208,7 @@ export class Coordinator {
 
       if (!expectedHash.equals(actualHash)) {
         console.log(
-          `❌ Hash mismatch for piece ${pieceData.pieceIndex}, retrying`
+          `Hash mismatch for piece ${pieceData.pieceIndex}, retrying`
         );
         this.inProgressPieces.delete(pieceData.pieceIndex);
         this.pieceBuffers.delete(pieceData.pieceIndex);
@@ -291,7 +289,7 @@ export class Coordinator {
 
       if (this.completedPieces.size === this.totalPieces) {
         fs.closeSync(this.outputFile!);
-        console.log("✅ Download complete!", this.outputPath);
+        console.log("*** Download complete!", this.outputPath);
         process.exit(0);
         return;
       }
@@ -340,19 +338,15 @@ export class Coordinator {
   };
 
   onPeerDisconnected = async (peer: Peer) => {
-    console.log(`Peer ${peer.PEER_IP} disconnected`);
-
     // Remove from active peers
     this.peers = this.peers.filter((p) => p !== peer);
     this.interestedPeers.delete(peer);
     this.unchokedPeers.delete(peer);
 
     // If we have fewer than 20 active peers, try to get more
-    const activePeers = this.peers.filter((p) => !p.peerChoking).length;
+    const activePeers = this.peers.filter((p) => p.handshakeDone).length;
 
     if (activePeers < 20) {
-      console.log(`⚠️  Only ${activePeers} active peers, requesting more...`);
-
       if (!this.headers) return;
 
       const newPeers = await getPeerList(this.headers);
@@ -393,8 +387,6 @@ export class Coordinator {
       );
 
       if (freshPeers.length > 0) {
-        console.log(`✨ Found ${freshPeers.length} new peers`);
-
         freshPeers.slice(0, 20).forEach((peer) => {
           const newPeer = new Peer(
             peer,
@@ -471,6 +463,5 @@ export class Coordinator {
 // TODO:
 // after download check all files against hash?
 // Rarest-first piece selection strategy
-// Upload/seeding support
 // Magnet link support
 // DHT (Distributed Hash Table)

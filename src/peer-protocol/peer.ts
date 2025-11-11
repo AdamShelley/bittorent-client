@@ -118,10 +118,20 @@ export class Peer extends EventEmitter {
         const encodedBitfield = encodeBitfield(
           this.constructBitfield(this.clientBitfield!, this.totalPieces)
         );
-        this.socket?.write(encodedBitfield);
-        this.socket?.write(encodeInterested());
 
-        this.amInterested = true;
+        console.log(
+          `Handshake with ${this.PEER_IP} complete, sending bitfield`
+        );
+
+        this.socket?.write(encodedBitfield);
+
+        // Only send interested if we're missing pieces (downloading)
+        if (this.clientBitfield!.size < this.totalPieces) {
+          this.socket?.write(encodeInterested());
+          this.amInterested = true;
+        } else {
+          // Waiting
+        }
       } catch (e) {
         console.warn(e);
       }
