@@ -201,4 +201,23 @@ export class PieceManager {
   getBlockCount = (pieceIndex: number) => {
     return this.pieceBlockCounts.get(pieceIndex) || 0;
   };
+
+  getCompletedCount() {
+    return this.completedPieces.size;
+  }
+
+  getCompletedPieces() {
+    return this.completedPieces;
+  }
+
+  getPiecesNeededCount() {
+    return this.piecesNeeded.size;
+  }
+  isDownloadComplete() {
+    return;
+  }
+
+  setEndgameMode(isEndgame: boolean) {
+    this.isEndgameMode = isEndgame;
+  }
 }

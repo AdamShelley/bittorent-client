@@ -1,6 +1,3 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 import type { HeaderReturnType } from "../header-assembly/headers";
 import {
   getPeerList,
@@ -9,11 +6,12 @@ import {
 import { Peer } from "../peer-protocol/peer";
 import { PieceManager } from "../piece-manager/Piece-Manager";
 import { SETTINGS } from "../settings/settings";
-
-const BLOCK_SIZE = 16384;
-const MAX_UNCHOKED_PEERS = 3;
+import { FileManager } from "../file-manager/File-Manager";
 
 export class Coordinator {
+  pieceManager: PieceManager;
+  fileManager: FileManager;
+
   torrent: any;
   peerList: PeerReturnType[] | null = null;
   headers: HeaderReturnType | null = null;
@@ -23,31 +21,11 @@ export class Coordinator {
   infoHash: Buffer | null = null;
   bytesDownloaded: number = 0;
   downloadStartTime: number = 0;
-
   lastProgressLog: number = 0;
-
   peers: Peer[] = [];
-
-  completedPieces: Set<number> = new Set();
-  inProgressPieces: Set<number> = new Set();
-  piecesNeeded: Set<number> = new Set();
-
-  pieceBuffers: Map<number, Buffer> = new Map();
-  pieceBlockCounts: Map<number, number> = new Map();
-
-  outputFile: number | null = null;
-  outputFolder: string | null = null;
-  outputPath: string = "";
   trackerInterval: number = 1800;
-
-  isEndgameMode: boolean = false;
-  peerPieces: Map<number, Set<Peer>> = new Map();
-  receivedBlocks: Map<number, Set<number>> = new Map();
-
   interestedPeers: Set<Peer> = new Set();
   unchokedPeers: Set<Peer> = new Set();
-
-  pieceManager: PieceManager;
 
   constructor(
     peerList: PeerReturnType[],
@@ -65,41 +43,16 @@ export class Coordinator {
       this.totalPieces,
       this.pieceLength,
       this.totalFileSize,
-      this.torrent
+      this.torrent.pieces
     );
 
-    // Get the filename without extension
-    const fullFileName = torrentInfo.name.toString();
-    const lastDotIndex = fullFileName.lastIndexOf(".");
-    const folderName =
-      lastDotIndex > 0 ? fullFileName.substring(0, lastDotIndex) : fullFileName;
+    this.fileManager = new FileManager(torrentInfo);
 
-    // Create download folder structure
-    this.outputFolder = path.join(process.cwd(), "downloaded", folderName);
-    fs.mkdirSync(this.outputFolder, { recursive: true });
+    const completed = this.fileManager.getResumeJsonFile();
 
-    // File path
-    this.outputPath = path.join(this.outputFolder, fullFileName);
-
-    // Open or create the file
-    const fileExists = fs.existsSync(this.outputPath);
-    this.outputFile = fs.openSync(this.outputPath, fileExists ? "r+" : "w");
-
-    // Resume file path (in the same folder as the download)
-    const resumeFilePath = path.join(this.outputFolder, ".resume.json");
-
-    if (fs.existsSync(resumeFilePath)) {
-      const completed = JSON.parse(fs.readFileSync(resumeFilePath, "utf8"));
-      completed.forEach((pieceIndex: number) =>
-        this.completedPieces.add(pieceIndex)
-      );
-    }
-
-    for (let i = 0; i < this.totalPieces; i++) {
-      if (!this.completedPieces.has(i)) {
-        this.piecesNeeded.add(i);
-      }
-    }
+    completed?.forEach((pieceIndex: number) =>
+      this.pieceManager.markPieceComplete(pieceIndex)
+    );
 
     this.startPeerConnection();
     this.unchokeRotation();
@@ -119,7 +72,12 @@ export class Coordinator {
 
     peersToConnect.forEach((peer) =>
       this.peers.push(
-        new Peer(peer, this.headers!, this.completedPieces, this.totalPieces)
+        new Peer(
+          peer,
+          this.headers!,
+          this.pieceManager.completedPieces,
+          this.totalPieces
+        )
       )
     );
     console.log(`Connecting to ${this.peers.length} peers...`);
@@ -175,7 +133,7 @@ export class Coordinator {
       let currentCount = this.pieceManager.getBlockCount(pieceData.pieceIndex);
       let expectedBlocks = Math.ceil(actualPieceSize / SETTINGS.BLOCK_SIZE);
 
-      const nextBlockOffset = pieceData.offset + 5 * BLOCK_SIZE;
+      const nextBlockOffset = pieceData.offset + 5 * SETTINGS.BLOCK_SIZE;
       if (
         nextBlockOffset < actualPieceSize &&
         currentCount + 1 < expectedBlocks
@@ -193,13 +151,53 @@ export class Coordinator {
     }
 
     if (result.status === "complete") {
-      // Write buffer to disk
-      // Handle endgame peer cancellation (if result.peersToCancel exists)
-      // Send have message to all peers
-      // Update resume file
-      // Log progress
-      // Check if download complete
-      // Assign next piece
+      this.fileManager.writePieceToFile(result, pieceData, this.pieceLength);
+
+      // If endgame mode:
+      if (result.peersToCancel) {
+        result.peersToCancel.forEach((p) => {
+          if (p !== peer) {
+            p.cancelPiece(pieceData.pieceIndex);
+          }
+        });
+      }
+
+      this.peers.forEach((peer) => {
+        peer.sendHave(pieceData.pieceIndex);
+      });
+
+      // Download logging
+      const activePeers = this.peers.filter((p) => !p.peerChoking).length;
+      const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000;
+      const speedMBps = this.bytesDownloaded / elapsedSeconds / (1024 * 1024);
+      const progress = (
+        (this.pieceManager.getCompletedCount() / this.totalPieces) *
+        100
+      ).toFixed(1);
+
+      console.log(
+        `Progress: ${this.pieceManager.getCompletedCount()}/${
+          this.totalPieces
+        } (${progress}%) | Speed: ${speedMBps.toFixed(
+          2
+        )} MB/s | Active: ${activePeers} peers`
+      );
+
+      this.fileManager.writeToResume(this.pieceManager.getCompletedPieces());
+
+      if (this.pieceManager.getPiecesNeededCount() <= 20) {
+        this.pieceManager.setEndgameMode(true);
+      }
+
+      if (this.pieceManager.getCompletedCount() === this.totalPieces) {
+        this.fileManager.closeFile();
+        console.log("*** Download complete!", this.fileManager.getOutputPath());
+        process.exit(0);
+        return;
+      }
+
+      // Get next piece
+      this.assignPieceToDownload(peer);
     }
   };
 
@@ -240,7 +238,7 @@ export class Coordinator {
           const newPeer = new Peer(
             peerInfo,
             this.headers!,
-            this.completedPieces,
+            this.pieceManager.completedPieces,
             this.totalPieces
           );
           this.attachListeners(newPeer);
@@ -270,7 +268,7 @@ export class Coordinator {
           const newPeer = new Peer(
             peer,
             this.headers!,
-            this.completedPieces,
+            this.pieceManager.completedPieces,
             this.totalPieces
           );
           this.attachListeners(newPeer);
@@ -285,43 +283,17 @@ export class Coordinator {
     requestPiece: { pieceIndex: number; offset: number; length: number }
   ) => {
     // Read the block from your file
-    if (!this.completedPieces.has(requestPiece.pieceIndex)) {
+    if (!this.pieceManager.completedPieces.has(requestPiece.pieceIndex)) {
       return;
     }
 
-    if (!this.outputFile) return;
+    if (!this.fileManager.getOutputFile()) return;
 
     const buffer = Buffer.alloc(requestPiece.length);
     const position =
       requestPiece.pieceIndex * this.pieceLength + requestPiece.offset;
 
-    fs.read(
-      this.outputFile,
-      buffer,
-      0,
-      requestPiece.length,
-      position,
-      (err, bytesRead) => {
-        if (err) {
-          console.error(
-            `Error reading piece ${requestPiece.pieceIndex}:`,
-            err.message
-          );
-          return;
-        }
-
-        if (bytesRead !== requestPiece.length) {
-          console.error(
-            `Short read: expected ${requestPiece.length}, got ${bytesRead}`
-          );
-          return;
-        }
-
-        console.log("Sending a piece to a peer");
-
-        peer.sendPiece(requestPiece.pieceIndex, requestPiece.offset, buffer);
-      }
-    );
+    this.fileManager.readFilePiece(buffer, requestPiece, position, peer);
   };
 
   unchokeRotation = () => {
@@ -331,7 +303,7 @@ export class Coordinator {
       if (peer.amChoking) {
         peer.encodeUnchokeHelper();
         this.unchokedPeers.add(peer);
-        if (this.unchokedPeers.size >= MAX_UNCHOKED_PEERS) {
+        if (this.unchokedPeers.size >= SETTINGS.MAX_UNCHOKED_PEERS) {
           return;
         }
       }
