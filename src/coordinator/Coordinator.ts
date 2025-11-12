@@ -7,6 +7,8 @@ import {
   type PeerReturnType,
 } from "../http-requests/contact-tracker";
 import { Peer } from "../peer-protocol/peer";
+import { PieceManager } from "../piece-manager/Piece-Manager";
+import { SETTINGS } from "../settings/settings";
 
 const BLOCK_SIZE = 16384;
 const MAX_UNCHOKED_PEERS = 3;
@@ -45,6 +47,8 @@ export class Coordinator {
   interestedPeers: Set<Peer> = new Set();
   unchokedPeers: Set<Peer> = new Set();
 
+  pieceManager: PieceManager;
+
   constructor(
     peerList: PeerReturnType[],
     headerAssemblyResults: HeaderReturnType,
@@ -56,6 +60,13 @@ export class Coordinator {
     this.totalFileSize = torrentInfo.length;
     this.pieceLength = torrentInfo["piece length"];
     this.totalPieces = torrentInfo.pieces.length / 20;
+
+    this.pieceManager = new PieceManager(
+      this.totalPieces,
+      this.pieceLength,
+      this.totalFileSize,
+      this.torrent
+    );
 
     // Get the filename without extension
     const fullFileName = torrentInfo.name.toString();
@@ -148,193 +159,61 @@ export class Coordinator {
     }
     this.bytesDownloaded += pieceData.block.length;
 
-    if (!this.receivedBlocks.has(pieceData.pieceIndex)) {
-      this.receivedBlocks.set(pieceData.pieceIndex, new Set());
-    }
+    const result = this.pieceManager.onBlockReceived(
+      pieceData.pieceIndex,
+      pieceData.offset,
+      pieceData.block
+    );
 
-    const blocksForThisPiece = this.receivedBlocks.get(pieceData.pieceIndex)!;
-    if (blocksForThisPiece.has(pieceData.offset)) {
-      // Duplicate block! Ignore it
-      return;
-    }
-
-    blocksForThisPiece.add(pieceData.offset);
-
-    if (!this.pieceBuffers.has(pieceData.pieceIndex)) {
-      const bufferSize =
+    if (result.status === "incomplete") {
+      // Pipeline next block - calculate and request next block
+      const actualPieceSize =
         pieceData.pieceIndex === this.totalPieces - 1
           ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
           : this.pieceLength;
 
-      this.pieceBuffers.set(pieceData.pieceIndex, Buffer.alloc(bufferSize));
+      let currentCount = this.pieceManager.getBlockCount(pieceData.pieceIndex);
+      let expectedBlocks = Math.ceil(actualPieceSize / SETTINGS.BLOCK_SIZE);
+
+      const nextBlockOffset = pieceData.offset + 5 * BLOCK_SIZE;
+      if (
+        nextBlockOffset < actualPieceSize &&
+        currentCount + 1 < expectedBlocks
+      ) {
+        const blockSize = Math.min(
+          SETTINGS.BLOCK_SIZE,
+          actualPieceSize - nextBlockOffset
+        );
+        peer.requestPiece(pieceData.pieceIndex, nextBlockOffset, blockSize);
+      }
     }
 
-    pieceData.block.copy(
-      this.pieceBuffers.get(pieceData.pieceIndex)!,
-      pieceData.offset
-    );
-
-    const currentCount = this.pieceBlockCounts.get(pieceData.pieceIndex) || 0;
-    this.pieceBlockCounts.set(pieceData.pieceIndex, currentCount + 1);
-
-    const actualPieceSize =
-      pieceData.pieceIndex === this.totalPieces - 1
-        ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
-        : this.pieceLength;
-
-    const expectedBlocks = Math.ceil(actualPieceSize / BLOCK_SIZE);
-
-    // Request next block to keep pipeline full (5 blocks ahead)
-    const nextBlockOffset = pieceData.offset + 5 * BLOCK_SIZE;
-    if (
-      nextBlockOffset < actualPieceSize &&
-      currentCount + 1 < expectedBlocks
-    ) {
-      const blockSize = Math.min(BLOCK_SIZE, actualPieceSize - nextBlockOffset);
-      peer.requestPiece(pieceData.pieceIndex, nextBlockOffset, blockSize);
-    }
-
-    if (currentCount + 1 === expectedBlocks) {
-      // Validate the piece hash
-      const expectedHash = this.torrent.pieces.subarray(
-        pieceData.pieceIndex * 20,
-        (pieceData.pieceIndex + 1) * 20
-      );
-
-      const actualHash = crypto
-        .createHash("sha1")
-        .update(this.pieceBuffers.get(pieceData.pieceIndex)!)
-        .digest();
-
-      if (!expectedHash.equals(actualHash)) {
-        console.log(
-          `Hash mismatch for piece ${pieceData.pieceIndex}, retrying`
-        );
-        this.inProgressPieces.delete(pieceData.pieceIndex);
-        this.pieceBuffers.delete(pieceData.pieceIndex);
-        this.pieceBlockCounts.delete(pieceData.pieceIndex);
-        this.receivedBlocks.delete(pieceData.pieceIndex);
-        this.assignPieceToDownload(peer);
-        return;
-      }
-
-      const isLastPiece = pieceData.pieceIndex === this.totalPieces - 1;
-      const pieceSize = isLastPiece
-        ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
-        : this.pieceLength;
-
-      fs.writeSync(
-        this.outputFile!,
-        this.pieceBuffers.get(pieceData.pieceIndex)!,
-        0,
-        pieceSize,
-        pieceData.pieceIndex * this.pieceLength
-      );
-
-      // If endgame mode:
-      if (this.isEndgameMode && this.peerPieces.has(pieceData.pieceIndex)) {
-        // console.log("is endgame mode, cancelling other peers peice");
-        const peersWorkingOnThisPiece = this.peerPieces.get(
-          pieceData.pieceIndex
-        );
-
-        if (!peersWorkingOnThisPiece) return;
-
-        peersWorkingOnThisPiece.forEach((p) => {
-          if (p !== peer) {
-            p.cancelPiece(pieceData.pieceIndex);
-          }
-        });
-
-        // Clean up
-        this.peerPieces.delete(pieceData.pieceIndex);
-      }
-
-      // Update tracking
-      this.inProgressPieces.delete(pieceData.pieceIndex);
-      this.completedPieces.add(pieceData.pieceIndex);
-      this.piecesNeeded.delete(pieceData.pieceIndex);
-      this.pieceBuffers.delete(pieceData.pieceIndex);
-      this.pieceBlockCounts.delete(pieceData.pieceIndex);
-      this.receivedBlocks.delete(pieceData.pieceIndex);
-
-      this.peers.forEach((peer) => {
-        peer.sendHave(pieceData.pieceIndex);
-      });
-
-      const activePeers = this.peers.filter((p) => !p.peerChoking).length;
-      const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000;
-      const speedMBps = this.bytesDownloaded / elapsedSeconds / (1024 * 1024);
-      const progress = (
-        (this.completedPieces.size / this.totalPieces) *
-        100
-      ).toFixed(1);
-
-      console.log(
-        `Progress: ${this.completedPieces.size}/${
-          this.totalPieces
-        } (${progress}%) | Speed: ${speedMBps.toFixed(
-          2
-        )} MB/s | Active: ${activePeers} peers`
-      );
-
-      fs.writeFileSync(
-        path.join(this.outputFolder!, ".resume.json"),
-        JSON.stringify([...this.completedPieces])
-      );
-
-      if (this.piecesNeeded.size <= 20) {
-        this.isEndgameMode = true;
-      }
-
-      if (this.completedPieces.size === this.totalPieces) {
-        fs.closeSync(this.outputFile!);
-        console.log("*** Download complete!", this.outputPath);
-        process.exit(0);
-        return;
-      }
-
-      // Get next piece
+    if (result.status === "failed") {
       this.assignPieceToDownload(peer);
+    }
+
+    if (result.status === "complete") {
+      // Write buffer to disk
+      // Handle endgame peer cancellation (if result.peersToCancel exists)
+      // Send have message to all peers
+      // Update resume file
+      // Log progress
+      // Check if download complete
+      // Assign next piece
     }
   };
 
   assignPieceToDownload = (peer: Peer) => {
-    for (const pieceIndex of this.piecesNeeded) {
-      const peerHasPiece = peer.hasPiece(pieceIndex);
+    const pieceIndex = this.pieceManager.getPieceToDownload(peer);
+    if (pieceIndex == null) return;
 
-      if (
-        peerHasPiece &&
-        (this.isEndgameMode || !this.inProgressPieces.has(pieceIndex))
-      ) {
-        this.inProgressPieces.add(pieceIndex);
+    const blocks = this.pieceManager.getPieceBlocks(pieceIndex);
 
-        const pieceSize =
-          pieceIndex === this.totalPieces - 1
-            ? this.totalFileSize - pieceIndex * this.pieceLength
-            : this.pieceLength;
+    blocks?.forEach((block) => {
+      peer.requestPiece(pieceIndex, block.offset, block.length);
+    });
 
-        const totalBlocks = Math.ceil(pieceSize / BLOCK_SIZE);
-        const blocksToRequest = this.isEndgameMode
-          ? totalBlocks
-          : Math.min(5, totalBlocks);
-
-        for (let i = 0; i < blocksToRequest; i++) {
-          const offset = i * BLOCK_SIZE;
-          const blockSize = Math.min(BLOCK_SIZE, pieceSize - offset);
-          peer.requestPiece(pieceIndex, offset, blockSize);
-        }
-
-        if (!this.peerPieces.has(pieceIndex)) {
-          this.peerPieces.set(pieceIndex, new Set());
-        }
-        this.peerPieces.get(pieceIndex)!.add(peer);
-
-        if (!this.isEndgameMode) {
-          return;
-        }
-      }
-    }
+    this.pieceManager.trackPeerAssignment(pieceIndex, peer);
   };
 
   onPeerDisconnected = async (peer: Peer) => {

@@ -101,9 +101,9 @@ export const createUDPSocket = (
         }
 
         // Parse announce response
-        const interval = msg.readUInt32BE(8);
-        const leechers = msg.readUInt32BE(12);
-        const seeders = msg.readUInt32BE(16);
+        // const interval = msg.readUInt32BE(8);
+        // const leechers = msg.readUInt32BE(12);
+        // const seeders = msg.readUInt32BE(16);
 
         // console.log("Interval:", interval);
         // console.log("Leechers:", leechers);

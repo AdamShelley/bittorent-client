@@ -1,0 +1,4 @@
+export const SETTINGS = {
+  BLOCK_SIZE: 16384,
+  MAX_UNCHOKED_PEERS: 3,
+};
