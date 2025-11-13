@@ -71,7 +71,7 @@ export class PieceManager {
     if (this.isEndgameMode) {
       blocksToRequest = totalBlocks;
     } else {
-      blocksToRequest = Math.min(5, totalBlocks);
+      blocksToRequest = Math.min(15, totalBlocks);
     }
 
     // Build array of block reqeuest

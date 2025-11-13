@@ -62,13 +62,14 @@ export class Coordinator {
     }, 30 * 1000);
 
     this.scheduleTrackerAnnounce();
+    this.setupGracefulShutdown();
   }
 
   startPeerConnection = () => {
     if (!this.peerList || !this.peerList.length || !this.headers) return;
 
     // Connect to up to 50 peers
-    const peersToConnect = this.peerList.slice(0, 100);
+    const peersToConnect = this.peerList.slice(0, 250);
 
     peersToConnect.forEach((peer) =>
       this.peers.push(
@@ -124,7 +125,6 @@ export class Coordinator {
     );
 
     if (result.status === "incomplete") {
-      // Pipeline next block - calculate and request next block
       const actualPieceSize =
         pieceData.pieceIndex === this.totalPieces - 1
           ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
@@ -133,16 +133,35 @@ export class Coordinator {
       let currentCount = this.pieceManager.getBlockCount(pieceData.pieceIndex);
       let expectedBlocks = Math.ceil(actualPieceSize / SETTINGS.BLOCK_SIZE);
 
-      const nextBlockOffset = pieceData.offset + 5 * SETTINGS.BLOCK_SIZE;
-      if (
-        nextBlockOffset < actualPieceSize &&
-        currentCount + 1 < expectedBlocks
-      ) {
-        const blockSize = Math.min(
-          SETTINGS.BLOCK_SIZE,
-          actualPieceSize - nextBlockOffset
-        );
-        peer.requestPiece(pieceData.pieceIndex, nextBlockOffset, blockSize);
+      // Calculate which blocks we've already requested
+      const alreadyRequested = new Set<number>();
+      peer.requestQueue.forEach((req) => {
+        if (req.pieceIndex === pieceData.pieceIndex) {
+          alreadyRequested.add(req.offset);
+        }
+      });
+      peer.pendingRequests.forEach((req) => {
+        if (req.pieceIndex === pieceData.pieceIndex) {
+          alreadyRequested.add(req.offset);
+        }
+      });
+
+      // Request next blocks to keep pipeline full (request up to 5 more blocks)
+      let blocksRequested = 0;
+      for (let i = 0; i < expectedBlocks && blocksRequested < 5; i++) {
+        const blockOffset = i * SETTINGS.BLOCK_SIZE;
+
+        if (
+          !alreadyRequested.has(blockOffset) &&
+          blockOffset < actualPieceSize
+        ) {
+          const blockSize = Math.min(
+            SETTINGS.BLOCK_SIZE,
+            actualPieceSize - blockOffset
+          );
+          peer.requestPiece(pieceData.pieceIndex, blockOffset, blockSize);
+          blocksRequested++;
+        }
       }
     }
 
@@ -183,13 +202,20 @@ export class Coordinator {
         )} MB/s | Active: ${activePeers} peers`
       );
 
-      this.fileManager.writeToResume(this.pieceManager.getCompletedPieces());
+      this.fileManager.writeToResume(
+        this.pieceManager.getCompletedPieces(),
+        false
+      );
 
       if (this.pieceManager.getPiecesNeededCount() <= 20) {
         this.pieceManager.setEndgameMode(true);
       }
 
       if (this.pieceManager.getCompletedCount() === this.totalPieces) {
+        this.fileManager.writeToResume(
+          this.pieceManager.getCompletedPieces(),
+          true
+        );
         this.fileManager.closeFile();
         console.log("*** Download complete!", this.fileManager.getOutputPath());
         process.exit(0);
@@ -223,7 +249,7 @@ export class Coordinator {
     // If we have fewer than 20 active peers, try to get more
     const activePeers = this.peers.filter((p) => p.handshakeDone).length;
 
-    if (activePeers < 20) {
+    if (activePeers < 50) {
       if (!this.headers) return;
 
       const newPeers = await getPeerList(this.headers);
@@ -233,7 +259,7 @@ export class Coordinator {
 
       newPeers
         .filter((p) => !existingIPs.has(`${p.ip}:${p.port}`))
-        .slice(0, 10)
+        .slice(0, 20)
         .forEach((peerInfo) => {
           const newPeer = new Peer(
             peerInfo,
@@ -309,6 +335,21 @@ export class Coordinator {
       }
     }
   };
+
+  setupGracefulShutdown() {
+    const shutdown = () => {
+      console.log("\nSaving final resume state...");
+      this.fileManager.writeToResume(
+        this.pieceManager.getCompletedPieces(),
+        true
+      );
+      this.fileManager.closeFile();
+      process.exit(0);
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  }
 }
 
 // TODO:

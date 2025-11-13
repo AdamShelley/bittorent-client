@@ -1,5 +1,4 @@
 import type { PeerReturnType } from "../http-requests/contact-tracker";
-
 import type { HeaderReturnType } from "../header-assembly/headers";
 import { Coordinator } from "../coordinator/Coordinator";
 

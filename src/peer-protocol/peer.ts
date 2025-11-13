@@ -37,7 +37,7 @@ export class Peer extends EventEmitter {
 
   requestQueue: Array<{ pieceIndex: number; offset: number; length: number }> =
     [];
-  maxPipelineRequests: number = 15;
+  maxPipelineRequests: number = 50;
   pendingRequests: Array<{
     pieceIndex: number;
     offset: number;
@@ -133,7 +133,13 @@ export class Peer extends EventEmitter {
           // Waiting
         }
       } catch (e) {
-        console.warn(e);
+        console.warn(
+          `Handshake failed with ${this.PEER_IP}:`,
+          e instanceof Error ? e.message : "Unknown error"
+        );
+        this.socket?.destroy();
+        this.emit("disconnected");
+        return;
       }
     } else {
       this.buffer = Buffer.concat([this.buffer, data]);

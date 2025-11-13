@@ -9,6 +9,11 @@ export class FileManager {
   private outputPath: string = "";
   private resumeFilePath: string | null = null;
 
+  private piecesSinceLastResume: number = 0;
+  private lastResumeWrite: number = Date.now();
+  private readonly PIECES_BEFORE_RESUME = 50;
+  private readonly SECONDS_BEFORE_RESUME = 30;
+
   constructor(torrentInfo: any) {
     this.torrentInfo = torrentInfo;
     const fullFileName = this.torrentInfo.name.toString();
@@ -51,11 +56,23 @@ export class FileManager {
     );
   }
 
-  writeToResume(pieces: Set<number>) {
-    fs.writeFileSync(
-      path.join(this.getOutputFolder()!, ".resume.json"),
-      JSON.stringify([...pieces])
-    );
+  writeToResume(pieces: Set<number>, force: boolean = false) {
+    this.piecesSinceLastResume++;
+    const secondsSinceLastWrite = (Date.now() - this.lastResumeWrite) / 1000;
+
+    // Only write if we've hit thresholds OR it's forced (for shutdown)
+    if (
+      force ||
+      this.piecesSinceLastResume >= this.PIECES_BEFORE_RESUME ||
+      secondsSinceLastWrite >= this.SECONDS_BEFORE_RESUME
+    ) {
+      fs.writeFileSync(
+        path.join(this.getOutputFolder()!, ".resume.json"),
+        JSON.stringify([...pieces])
+      );
+      this.piecesSinceLastResume = 0;
+      this.lastResumeWrite = Date.now();
+    }
   }
 
   getResumeJsonFile() {
