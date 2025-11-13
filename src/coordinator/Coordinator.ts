@@ -1,16 +1,17 @@
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 import type { HeaderReturnType } from "../header-assembly/headers";
 import {
   getPeerList,
   type PeerReturnType,
 } from "../http-requests/contact-tracker";
 import { Peer } from "../peer-protocol/peer";
-
-const BLOCK_SIZE = 16384;
+import { PieceManager } from "../piece-manager/Piece-Manager";
+import { SETTINGS } from "../settings/settings";
+import { FileManager } from "../file-manager/File-Manager";
 
 export class Coordinator {
+  pieceManager: PieceManager;
+  fileManager: FileManager;
+
   torrent: any;
   peerList: PeerReturnType[] | null = null;
   headers: HeaderReturnType | null = null;
@@ -20,20 +21,11 @@ export class Coordinator {
   infoHash: Buffer | null = null;
   bytesDownloaded: number = 0;
   downloadStartTime: number = 0;
-
+  lastProgressLog: number = 0;
   peers: Peer[] = [];
-
-  completedPieces: Set<number> = new Set();
-  inProgressPieces: Set<number> = new Set();
-  piecesNeeded: Set<number> = new Set();
-
-  pieceBuffers: Map<number, Buffer> = new Map();
-  pieceBlockCounts: Map<number, number> = new Map();
-
-  outputFile: number | null = null;
-  outputFolder: string | null = null;
-  outputPath: string = "";
   trackerInterval: number = 1800;
+  interestedPeers: Set<Peer> = new Set();
+  unchokedPeers: Set<Peer> = new Set();
 
   constructor(
     peerList: PeerReturnType[],
@@ -47,57 +39,48 @@ export class Coordinator {
     this.pieceLength = torrentInfo["piece length"];
     this.totalPieces = torrentInfo.pieces.length / 20;
 
-    // Get the filename without extension
-    const fullFileName = torrentInfo.name.toString();
-    const lastDotIndex = fullFileName.lastIndexOf(".");
-    const folderName =
-      lastDotIndex > 0 ? fullFileName.substring(0, lastDotIndex) : fullFileName;
+    this.pieceManager = new PieceManager(
+      this.totalPieces,
+      this.pieceLength,
+      this.totalFileSize,
+      this.torrent.pieces
+    );
 
-    // Create download folder structure
-    this.outputFolder = path.join(process.cwd(), "downloaded", folderName);
-    fs.mkdirSync(this.outputFolder, { recursive: true });
+    this.fileManager = new FileManager(torrentInfo);
 
-    // File path
-    this.outputPath = path.join(this.outputFolder, fullFileName);
+    const completed = this.fileManager.getResumeJsonFile();
 
-    // Open or create the file
-    const fileExists = fs.existsSync(this.outputPath);
-    this.outputFile = fs.openSync(this.outputPath, fileExists ? "r+" : "w");
-
-    console.log(`📁 Download folder: ${this.outputFolder}`);
-    console.log(`📄 Output file: ${this.outputPath}`);
-
-    // Resume file path (in the same folder as the download)
-    const resumeFilePath = path.join(this.outputFolder, ".resume.json");
-
-    if (fs.existsSync(resumeFilePath)) {
-      const completed = JSON.parse(fs.readFileSync(resumeFilePath, "utf8"));
-      completed.forEach((pieceIndex: number) =>
-        this.completedPieces.add(pieceIndex)
-      );
-      console.log(`📋 Resuming: ${completed.length} pieces already downloaded`);
-    }
-
-    for (let i = 0; i < this.totalPieces; i++) {
-      if (!this.completedPieces.has(i)) {
-        this.piecesNeeded.add(i);
-      }
-    }
+    completed?.forEach((pieceIndex: number) =>
+      this.pieceManager.markPieceComplete(pieceIndex)
+    );
 
     this.startPeerConnection();
+    this.unchokeRotation();
+
+    setInterval(() => {
+      this.unchokeRotation();
+    }, 30 * 1000);
+
     this.scheduleTrackerAnnounce();
+    this.setupGracefulShutdown();
   }
 
   startPeerConnection = () => {
     if (!this.peerList || !this.peerList.length || !this.headers) return;
 
     // Connect to up to 50 peers
-    const peersToConnect = this.peerList.slice(0, 50);
+    const peersToConnect = this.peerList.slice(0, 250);
 
     peersToConnect.forEach((peer) =>
-      this.peers.push(new Peer(peer, this.headers!))
+      this.peers.push(
+        new Peer(
+          peer,
+          this.headers!,
+          this.pieceManager.completedPieces,
+          this.totalPieces
+        )
+      )
     );
-
     console.log(`Connecting to ${this.peers.length} peers...`);
     this.peers.forEach((peer: Peer) => this.attachListeners(peer));
   };
@@ -106,11 +89,24 @@ export class Coordinator {
     peer.on("unchoke", () => this.onPeerUnchoked(peer));
     peer.on("piece", (pieceData) => this.onPeerReceivePiece(peer, pieceData));
     peer.on("disconnected", () => this.onPeerDisconnected(peer));
+    peer.on("request", (pieceData) => this.peerRequestPiece(peer, pieceData));
+    peer.on("interested", () => this.onPeerInterested(peer));
+    peer.on("not-interested", () => this.onPeerNotInterested(peer));
   }
 
   onPeerUnchoked = (peer: Peer) => {
     // Find a piece that's needed AND not in-progress AND the peer has
     return this.assignPieceToDownload(peer);
+  };
+
+  onPeerInterested = (peer: Peer) => {
+    console.log(`> Peer ${peer.PEER_IP} is interested in our pieces`);
+
+    this.interestedPeers?.add(peer);
+  };
+
+  onPeerNotInterested = (peer: Peer) => {
+    this.interestedPeers?.delete(peer);
   };
 
   onPeerReceivePiece = (
@@ -122,107 +118,106 @@ export class Coordinator {
     }
     this.bytesDownloaded += pieceData.block.length;
 
-    if (!this.pieceBuffers.has(pieceData.pieceIndex)) {
-      const bufferSize =
+    const result = this.pieceManager.onBlockReceived(
+      pieceData.pieceIndex,
+      pieceData.offset,
+      pieceData.block
+    );
+
+    if (result.status === "incomplete") {
+      const actualPieceSize =
         pieceData.pieceIndex === this.totalPieces - 1
           ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
           : this.pieceLength;
 
-      this.pieceBuffers.set(pieceData.pieceIndex, Buffer.alloc(bufferSize));
+      let currentCount = this.pieceManager.getBlockCount(pieceData.pieceIndex);
+      let expectedBlocks = Math.ceil(actualPieceSize / SETTINGS.BLOCK_SIZE);
+
+      // Calculate which blocks we've already requested
+      const alreadyRequested = new Set<number>();
+      peer.requestQueue.forEach((req) => {
+        if (req.pieceIndex === pieceData.pieceIndex) {
+          alreadyRequested.add(req.offset);
+        }
+      });
+      peer.pendingRequests.forEach((req) => {
+        if (req.pieceIndex === pieceData.pieceIndex) {
+          alreadyRequested.add(req.offset);
+        }
+      });
+
+      // Request next blocks to keep pipeline full (request up to 5 more blocks)
+      let blocksRequested = 0;
+      for (let i = 0; i < expectedBlocks && blocksRequested < 5; i++) {
+        const blockOffset = i * SETTINGS.BLOCK_SIZE;
+
+        if (
+          !alreadyRequested.has(blockOffset) &&
+          blockOffset < actualPieceSize
+        ) {
+          const blockSize = Math.min(
+            SETTINGS.BLOCK_SIZE,
+            actualPieceSize - blockOffset
+          );
+          peer.requestPiece(pieceData.pieceIndex, blockOffset, blockSize);
+          blocksRequested++;
+        }
+      }
     }
 
-    pieceData.block.copy(
-      this.pieceBuffers.get(pieceData.pieceIndex)!,
-      pieceData.offset
-    );
-
-    const currentCount = this.pieceBlockCounts.get(pieceData.pieceIndex) || 0;
-    this.pieceBlockCounts.set(pieceData.pieceIndex, currentCount + 1);
-
-    const actualPieceSize =
-      pieceData.pieceIndex === this.totalPieces - 1
-        ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
-        : this.pieceLength;
-
-    const expectedBlocks = Math.ceil(actualPieceSize / BLOCK_SIZE);
-
-    // Request next block to keep pipeline full (5 blocks ahead)
-    const nextBlockOffset = pieceData.offset + 5 * BLOCK_SIZE;
-    if (
-      nextBlockOffset < actualPieceSize &&
-      currentCount + 1 < expectedBlocks
-    ) {
-      const blockSize = Math.min(BLOCK_SIZE, actualPieceSize - nextBlockOffset);
-      peer.requestPiece(pieceData.pieceIndex, nextBlockOffset, blockSize);
+    if (result.status === "failed") {
+      this.assignPieceToDownload(peer);
     }
 
-    if (currentCount + 1 === expectedBlocks) {
-      // Validate the piece hash
-      const expectedHash = this.torrent.pieces.subarray(
-        pieceData.pieceIndex * 20,
-        (pieceData.pieceIndex + 1) * 20
-      );
+    if (result.status === "complete") {
+      this.fileManager.writePieceToFile(result, pieceData, this.pieceLength);
 
-      const actualHash = crypto
-        .createHash("sha1")
-        .update(this.pieceBuffers.get(pieceData.pieceIndex)!)
-        .digest();
-
-      if (!expectedHash.equals(actualHash)) {
-        console.log(
-          `❌ Hash mismatch for piece ${pieceData.pieceIndex}, retrying`
-        );
-        this.inProgressPieces.delete(pieceData.pieceIndex);
-        this.pieceBuffers.delete(pieceData.pieceIndex);
-        this.pieceBlockCounts.delete(pieceData.pieceIndex);
-        this.assignPieceToDownload(peer);
-        return;
+      // If endgame mode:
+      if (result.peersToCancel) {
+        result.peersToCancel.forEach((p) => {
+          if (p !== peer) {
+            p.cancelPiece(pieceData.pieceIndex);
+          }
+        });
       }
 
-      const isLastPiece = pieceData.pieceIndex === this.totalPieces - 1;
-      const pieceSize = isLastPiece
-        ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
-        : this.pieceLength;
+      this.peers.forEach((peer) => {
+        peer.sendHave(pieceData.pieceIndex);
+      });
 
-      fs.writeSync(
-        this.outputFile!,
-        this.pieceBuffers.get(pieceData.pieceIndex)!,
-        0,
-        pieceSize,
-        pieceData.pieceIndex * this.pieceLength
-      );
-
-      // Update tracking
-      this.inProgressPieces.delete(pieceData.pieceIndex);
-      this.completedPieces.add(pieceData.pieceIndex);
-      this.piecesNeeded.delete(pieceData.pieceIndex);
-      this.pieceBuffers.delete(pieceData.pieceIndex);
-      this.pieceBlockCounts.delete(pieceData.pieceIndex);
-
+      // Download logging
       const activePeers = this.peers.filter((p) => !p.peerChoking).length;
       const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000;
       const speedMBps = this.bytesDownloaded / elapsedSeconds / (1024 * 1024);
       const progress = (
-        (this.completedPieces.size / this.totalPieces) *
+        (this.pieceManager.getCompletedCount() / this.totalPieces) *
         100
       ).toFixed(1);
 
       console.log(
-        `Progress: ${this.completedPieces.size}/${
+        `Progress: ${this.pieceManager.getCompletedCount()}/${
           this.totalPieces
         } (${progress}%) | Speed: ${speedMBps.toFixed(
           2
         )} MB/s | Active: ${activePeers} peers`
       );
 
-      fs.writeFileSync(
-        path.join(this.outputFolder!, ".resume.json"),
-        JSON.stringify([...this.completedPieces])
+      this.fileManager.writeToResume(
+        this.pieceManager.getCompletedPieces(),
+        false
       );
 
-      if (this.completedPieces.size === this.totalPieces) {
-        fs.closeSync(this.outputFile!);
-        console.log("✅ Download complete!", this.outputPath);
+      if (this.pieceManager.getPiecesNeededCount() <= 20) {
+        this.pieceManager.setEndgameMode(true);
+      }
+
+      if (this.pieceManager.getCompletedCount() === this.totalPieces) {
+        this.fileManager.writeToResume(
+          this.pieceManager.getCompletedPieces(),
+          true
+        );
+        this.fileManager.closeFile();
+        console.log("*** Download complete!", this.fileManager.getOutputPath());
         process.exit(0);
         return;
       }
@@ -233,42 +228,28 @@ export class Coordinator {
   };
 
   assignPieceToDownload = (peer: Peer) => {
-    for (const pieceIndex of this.piecesNeeded) {
-      const peerHasPiece = peer.hasPiece(pieceIndex);
+    const pieceIndex = this.pieceManager.getPieceToDownload(peer);
+    if (pieceIndex == null) return;
 
-      if (!this.inProgressPieces.has(pieceIndex) && peerHasPiece) {
-        this.inProgressPieces.add(pieceIndex);
+    const blocks = this.pieceManager.getPieceBlocks(pieceIndex);
 
-        const pieceSize =
-          pieceIndex === this.totalPieces - 1
-            ? this.totalFileSize - pieceIndex * this.pieceLength
-            : this.pieceLength;
+    blocks?.forEach((block) => {
+      peer.requestPiece(pieceIndex, block.offset, block.length);
+    });
 
-        const blocksToRequest = Math.min(5, Math.ceil(pieceSize / BLOCK_SIZE));
-
-        for (let i = 0; i < blocksToRequest; i++) {
-          const offset = i * BLOCK_SIZE;
-          const blockSize = Math.min(BLOCK_SIZE, pieceSize - offset);
-          peer.requestPiece(pieceIndex, offset, blockSize);
-        }
-
-        return;
-      }
-    }
+    this.pieceManager.trackPeerAssignment(pieceIndex, peer);
   };
 
   onPeerDisconnected = async (peer: Peer) => {
-    console.log(`Peer ${peer.PEER_IP} disconnected`);
-
     // Remove from active peers
     this.peers = this.peers.filter((p) => p !== peer);
+    this.interestedPeers.delete(peer);
+    this.unchokedPeers.delete(peer);
 
     // If we have fewer than 20 active peers, try to get more
-    const activePeers = this.peers.filter((p) => !p.peerChoking).length;
+    const activePeers = this.peers.filter((p) => p.handshakeDone).length;
 
-    if (activePeers < 20) {
-      console.log(`⚠️  Only ${activePeers} active peers, requesting more...`);
-
+    if (activePeers < 50) {
       if (!this.headers) return;
 
       const newPeers = await getPeerList(this.headers);
@@ -278,9 +259,14 @@ export class Coordinator {
 
       newPeers
         .filter((p) => !existingIPs.has(`${p.ip}:${p.port}`))
-        .slice(0, 10)
+        .slice(0, 20)
         .forEach((peerInfo) => {
-          const newPeer = new Peer(peerInfo, this.headers!);
+          const newPeer = new Peer(
+            peerInfo,
+            this.headers!,
+            this.pieceManager.completedPieces,
+            this.totalPieces
+          );
           this.attachListeners(newPeer);
           this.peers.push(newPeer);
         });
@@ -289,7 +275,7 @@ export class Coordinator {
 
   scheduleTrackerAnnounce = () => {
     setInterval(async () => {
-      console.log("🔄 Re-announcing to tracker for fresh peers...");
+      // console.log("🔄 Re-announcing to tracker for fresh peers...");
 
       if (!this.headers) return;
 
@@ -304,22 +290,70 @@ export class Coordinator {
       );
 
       if (freshPeers.length > 0) {
-        console.log(`✨ Found ${freshPeers.length} new peers`);
-
-        freshPeers.slice(0, 20).forEach((peer) => {
-          const newPeer = new Peer(peer, this.headers!);
+        freshPeers.slice(0, SETTINGS.MAX_FRESH_PEERS_PER_ANNOUNCE).forEach((peer) => {
+          const newPeer = new Peer(
+            peer,
+            this.headers!,
+            this.pieceManager.completedPieces,
+            this.totalPieces
+          );
           this.attachListeners(newPeer);
           this.peers.push(newPeer);
         });
       }
     }, this.trackerInterval * 1000);
   };
+
+  peerRequestPiece = (
+    peer: Peer,
+    requestPiece: { pieceIndex: number; offset: number; length: number }
+  ) => {
+    // Read the block from your file
+    if (!this.pieceManager.completedPieces.has(requestPiece.pieceIndex)) {
+      return;
+    }
+
+    if (!this.fileManager.getOutputFile()) return;
+
+    const buffer = Buffer.alloc(requestPiece.length);
+    const position =
+      requestPiece.pieceIndex * this.pieceLength + requestPiece.offset;
+
+    this.fileManager.readFilePiece(buffer, requestPiece, position, peer);
+  };
+
+  unchokeRotation = () => {
+    const interestedPeersArray = Array.from(this.interestedPeers);
+    for (let i = 0; i < interestedPeersArray.length; i++) {
+      const peer = interestedPeersArray[i];
+      if (peer.amChoking) {
+        peer.encodeUnchokeHelper();
+        this.unchokedPeers.add(peer);
+        if (this.unchokedPeers.size >= SETTINGS.MAX_UNCHOKED_PEERS) {
+          return;
+        }
+      }
+    }
+  };
+
+  setupGracefulShutdown() {
+    const shutdown = () => {
+      console.log("\nSaving final resume state...");
+      this.fileManager.writeToResume(
+        this.pieceManager.getCompletedPieces(),
+        true
+      );
+      this.fileManager.closeFile();
+      process.exit(0);
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  }
 }
 
 // TODO:
-// Track which peer is downloading which piece (for better disconnect handling)
-// Pipelining (request multiple blocks ahead)
+// after download check all files against hash?
 // Rarest-first piece selection strategy
-// Upload/seeding support
 // Magnet link support
 // DHT (Distributed Hash Table)

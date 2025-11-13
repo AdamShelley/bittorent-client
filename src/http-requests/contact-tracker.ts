@@ -1,5 +1,6 @@
 import { decode } from "../bencode/bencode";
 import type { HeaderReturnType } from "../header-assembly/headers";
+import { handleUDPTrackers } from "../udp-tracker/contact-tracker-udp";
 
 export interface PeerReturnType {
   ip: string;
@@ -22,7 +23,7 @@ export const getPeerList = async (
   const info_hash_converted = bufferToHex(info_hash);
   const peer_id_converted = bufferToHex(peer_id);
 
-  // Build list of trackers to try
+  // Build list of ALL trackers to try (HTTP + UDP)
   const trackersToTry = [url];
 
   if (announceList) {
@@ -30,10 +31,11 @@ export const getPeerList = async (
       const tracker = Array.isArray(tier) ? tier[0] : tier;
       const trackerUrl = tracker.toString("utf8");
 
-      // Only add HTTP/HTTPS trackers
+      // Add HTTP/HTTPS/UDP trackers
       if (
         (trackerUrl.startsWith("http://") ||
-          trackerUrl.startsWith("https://")) &&
+          trackerUrl.startsWith("https://") ||
+          trackerUrl.startsWith("udp://")) &&
         trackerUrl !== url
       ) {
         trackersToTry.push(trackerUrl);
@@ -45,51 +47,60 @@ export const getPeerList = async (
 
   // Try each tracker until one works
   for (const trackerUrl of trackersToTry) {
-    const assembledURL = `${trackerUrl}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}&numwant=50`;
-
     try {
-      console.log(`📡 Trying tracker: ${trackerUrl}`);
-      const response = await fetch(assembledURL);
-      console.log("STATUS:", response.status);
+      let peerInfo: PeerReturnType[] = [];
 
-      if (response.status === 503) {
-        console.log("⚠️  Tracker rate-limiting, trying next...");
-        continue;
+      // Route to appropriate handler based on protocol
+      if (trackerUrl.startsWith("udp://")) {
+        console.log(`📡 Trying UDP tracker: ${trackerUrl}`);
+        peerInfo = await handleUDPTrackers(trackerUrl, headerAssemblyResults);
+      } else {
+        console.log(`🌐 Trying HTTP tracker: ${trackerUrl}`);
+
+        const assembledURL = `${trackerUrl}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}&numwant=50`;
+
+        const response = await fetch(assembledURL);
+
+        if (response.status === 503) {
+          console.log("⚠️  Tracker rate-limiting, trying next...");
+          continue;
+        }
+
+        if (!response.ok) {
+          console.log(`❌ Tracker error ${response.status}, trying next...`);
+          continue;
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const decodedBuffer = decode(buffer, 0);
+
+        if (decodedBuffer?.decodedValue?.["failure reason"]) {
+          console.log("---FAILED---");
+          console.log(
+            "REASON:",
+            decodedBuffer.decodedValue["failure reason"].toString("utf8")
+          );
+          continue;
+        }
+
+        const peers = decodedBuffer?.decodedValue.peers;
+
+        if (!peers || peers.length === 0) {
+          console.log("⚠️  Tracker returned no peers, trying next...");
+          continue;
+        }
+
+        for (let i = 0; i < peers.length; i += 6) {
+          const peer = peers.subarray(i, i + 6);
+          const parsedPeer = parsePeer(peer);
+          peerInfo.push(parsedPeer);
+        }
       }
 
-      if (!response.ok) {
-        console.log(`❌ Tracker error ${response.status}, trying next...`);
-        continue;
+      if (peerInfo.length > 0) {
+        console.log(`✅ Got ${peerInfo.length} peers from ${trackerUrl}`);
+        return peerInfo;
       }
-
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const decodedBuffer = decode(buffer, 0);
-
-      if (decodedBuffer?.decodedValue?.["failure reason"]) {
-        console.log("---FAILED---");
-        console.log(
-          "REASON:",
-          decodedBuffer.decodedValue["failure reason"].toString("utf8")
-        );
-        continue;
-      }
-
-      const peers = decodedBuffer?.decodedValue.peers;
-
-      if (!peers || peers.length === 0) {
-        console.log("⚠️  Tracker returned no peers, trying next...");
-        continue;
-      }
-
-      const peerInfo = [];
-      for (let i = 0; i < peers.length; i += 6) {
-        const peer = peers.subarray(i, i + 6);
-        const parsedPeer = parsePeer(peer);
-        peerInfo.push(parsedPeer);
-      }
-
-      console.log(`✅ Got ${peerInfo.length} peers from ${trackerUrl}`);
-      return peerInfo;
     } catch (error) {
       console.log(`❌ Tracker ${trackerUrl} failed:`, (error as Error).message);
       continue;
