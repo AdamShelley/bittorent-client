@@ -290,7 +290,7 @@ export class Coordinator {
       );
 
       if (freshPeers.length > 0) {
-        freshPeers.slice(0, 20).forEach((peer) => {
+        freshPeers.slice(0, SETTINGS.MAX_FRESH_PEERS_PER_ANNOUNCE).forEach((peer) => {
           const newPeer = new Peer(
             peer,
             this.headers!,
