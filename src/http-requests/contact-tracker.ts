@@ -43,7 +43,7 @@ export const getPeerList = async (
     }
   }
 
-  console.log(`Trying ${trackersToTry.length} tracker(s)...`);
+  // console.log(`Trying ${trackersToTry.length} tracker(s)...`);
 
   // Try each tracker until one works
   for (const trackerUrl of trackersToTry) {
@@ -52,10 +52,10 @@ export const getPeerList = async (
 
       // Route to appropriate handler based on protocol
       if (trackerUrl.startsWith("udp://")) {
-        console.log(`📡 Trying UDP tracker: ${trackerUrl}`);
+        // console.log(`📡 Trying UDP tracker: ${trackerUrl}`);
         peerInfo = await handleUDPTrackers(trackerUrl, headerAssemblyResults);
       } else {
-        console.log(`🌐 Trying HTTP tracker: ${trackerUrl}`);
+        // console.log(`🌐 Trying HTTP tracker: ${trackerUrl}`);
 
         const assembledURL = `${trackerUrl}?info_hash=${info_hash_converted}&peer_id=${peer_id_converted}&port=${port}&uploaded=${uploaded}&downloaded=${downloaded}&left=${left}&compact=${compact}&numwant=50`;
 
@@ -98,7 +98,7 @@ export const getPeerList = async (
       }
 
       if (peerInfo.length > 0) {
-        console.log(`✅ Got ${peerInfo.length} peers from ${trackerUrl}`);
+        // console.log(`✅ Got ${peerInfo.length} peers from ${trackerUrl}`);
         return peerInfo;
       }
     } catch (error) {

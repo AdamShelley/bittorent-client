@@ -91,12 +91,19 @@ export class Coordinator {
     peer.on("disconnected", () => this.onPeerDisconnected(peer));
     peer.on("request", (pieceData) => this.peerRequestPiece(peer, pieceData));
     peer.on("interested", () => this.onPeerInterested(peer));
+    peer.on("bitfield-received", (bitfieldData) =>
+      this.onPeerBitfieldReceived(peer, bitfieldData)
+    );
     peer.on("not-interested", () => this.onPeerNotInterested(peer));
   }
 
   onPeerUnchoked = (peer: Peer) => {
     // Find a piece that's needed AND not in-progress AND the peer has
     return this.assignPieceToDownload(peer);
+  };
+
+  onPeerBitfieldReceived = (peer: Peer, bitfieldData: Buffer) => {
+    this.pieceManager.updateAvailablility(bitfieldData, true);
   };
 
   onPeerInterested = (peer: Peer) => {
@@ -130,7 +137,6 @@ export class Coordinator {
           ? this.totalFileSize - pieceData.pieceIndex * this.pieceLength
           : this.pieceLength;
 
-      let currentCount = this.pieceManager.getBlockCount(pieceData.pieceIndex);
       let expectedBlocks = Math.ceil(actualPieceSize / SETTINGS.BLOCK_SIZE);
 
       // Calculate which blocks we've already requested
@@ -248,6 +254,7 @@ export class Coordinator {
 
     // If we have fewer than 20 active peers, try to get more
     const activePeers = this.peers.filter((p) => p.handshakeDone).length;
+    this.pieceManager.updateAvailablility(peer.bitfield, false);
 
     if (activePeers < 50) {
       if (!this.headers) return;
@@ -290,16 +297,18 @@ export class Coordinator {
       );
 
       if (freshPeers.length > 0) {
-        freshPeers.slice(0, SETTINGS.MAX_FRESH_PEERS_PER_ANNOUNCE).forEach((peer) => {
-          const newPeer = new Peer(
-            peer,
-            this.headers!,
-            this.pieceManager.completedPieces,
-            this.totalPieces
-          );
-          this.attachListeners(newPeer);
-          this.peers.push(newPeer);
-        });
+        freshPeers
+          .slice(0, SETTINGS.MAX_FRESH_PEERS_PER_ANNOUNCE)
+          .forEach((peer) => {
+            const newPeer = new Peer(
+              peer,
+              this.headers!,
+              this.pieceManager.completedPieces,
+              this.totalPieces
+            );
+            this.attachListeners(newPeer);
+            this.peers.push(newPeer);
+          });
       }
     }, this.trackerInterval * 1000);
   };
