@@ -246,7 +246,12 @@ export class PieceManager {
     this.isEndgameMode = isEndgame;
   }
 
-  updateAvailablility = (bitfield: Buffer, isAdding: boolean) => {
+  incrementPieceAvailability = (pieceIndex: number) => {
+    const currentCount = this.pieceCount.get(pieceIndex) || 0;
+    this.pieceCount.set(pieceIndex, currentCount + 1);
+  };
+
+  updateAvailability = (bitfield: Buffer, isAdding: boolean) => {
     // Loop through bitfield and update
     for (let pieceIndex = 0; pieceIndex < this.totalPieces; pieceIndex++) {
       const hasPiece = this.hasPiece(pieceIndex, bitfield);

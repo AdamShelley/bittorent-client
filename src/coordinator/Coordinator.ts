@@ -91,6 +91,9 @@ export class Coordinator {
     peer.on("disconnected", () => this.onPeerDisconnected(peer));
     peer.on("request", (pieceData) => this.peerRequestPiece(peer, pieceData));
     peer.on("interested", () => this.onPeerInterested(peer));
+    peer.on("have", (pieceIndex) => {
+      this.pieceManager.incrementPieceAvailability(pieceIndex);
+    });
     peer.on("bitfield-received", (bitfieldData) =>
       this.onPeerBitfieldReceived(peer, bitfieldData)
     );
@@ -103,7 +106,7 @@ export class Coordinator {
   };
 
   onPeerBitfieldReceived = (peer: Peer, bitfieldData: Buffer) => {
-    this.pieceManager.updateAvailablility(bitfieldData, true);
+    this.pieceManager.updateAvailability(bitfieldData, true);
   };
 
   onPeerInterested = (peer: Peer) => {
@@ -254,7 +257,7 @@ export class Coordinator {
 
     // If we have fewer than 20 active peers, try to get more
     const activePeers = this.peers.filter((p) => p.handshakeDone).length;
-    this.pieceManager.updateAvailablility(peer.bitfield, false);
+    this.pieceManager.updateAvailability(peer.bitfield, false);
 
     if (activePeers < 50) {
       if (!this.headers) return;

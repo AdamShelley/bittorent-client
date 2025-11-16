@@ -186,6 +186,7 @@ export class Peer extends EventEmitter {
             const pieceIndex = parsed.result?.pieceIndex;
             if (pieceIndex !== undefined) {
               this.markPieceAsAvailable(pieceIndex);
+              this.emit("have", pieceIndex);
             }
           } else if (parsed.id === 6) {
             // For Seeding
