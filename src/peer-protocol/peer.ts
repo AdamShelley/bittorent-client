@@ -76,7 +76,7 @@ export class Peer extends EventEmitter {
       // console.log(`Connected to ${this.PEER_IP}:${this.PEER_PORT}`);
       this.socket?.write(handshake);
     });
-    this.socket.on("connect", () => console.log("Connected"));
+    this.socket.on("connect", () => {});
     this.socket.on("data", (data) => this.handleData(data));
     this.socket.on("close", () => this.emit("disconnected"));
     this.socket.on("error", (err) => {
@@ -172,6 +172,7 @@ export class Peer extends EventEmitter {
           } else if (parsed.id === 5) {
             if (parsed?.result?.bitfield) {
               this.bitfield = parsed.result.bitfield;
+              this.emit("bitfield-received", this.bitfield);
             }
           } else if (parsed.id === 1) {
             // console.log("📣 Received UNCHOKE from peer");
@@ -185,6 +186,7 @@ export class Peer extends EventEmitter {
             const pieceIndex = parsed.result?.pieceIndex;
             if (pieceIndex !== undefined) {
               this.markPieceAsAvailable(pieceIndex);
+              this.emit("have", pieceIndex);
             }
           } else if (parsed.id === 6) {
             // For Seeding

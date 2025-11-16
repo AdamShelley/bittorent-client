@@ -19,6 +19,8 @@ export class PieceManager {
   peerPieces: Map<number, Set<Peer>> = new Map();
   isEndgameMode: boolean = false;
 
+  pieceCount: Map<number, number> = new Map();
+
   constructor(
     totalPieces: number,
     pieceLength: number,
@@ -32,6 +34,7 @@ export class PieceManager {
 
     for (let i = 0; i < this.totalPieces; i++) {
       this.piecesNeeded.add(i);
+      this.pieceCount.set(i, 0);
     }
   }
 
@@ -41,16 +44,38 @@ export class PieceManager {
   };
 
   getPieceToDownload = (peer: Peer) => {
+    let peersPieces: number[] = [];
     for (let piece of this.piecesNeeded) {
       if (
         peer.hasPiece(piece) &&
         (this.isEndgameMode || !this.inProgressPieces.has(piece))
       ) {
-        return piece;
+        peersPieces.push(piece);
       }
     }
 
-    return null;
+    if (this.completedPieces.size === 0) {
+      if (peersPieces.length === 0) return null;
+      const index = Math.floor(Math.random() * peersPieces.length);
+
+      return peersPieces[index];
+    }
+
+    // Step 2: For each piece in that array, look up its count
+    const pieceCounts = peersPieces.map((piece) => {
+      const count = this.pieceCount.get(piece);
+      return { pieceIndex: piece, count };
+    });
+
+    // Step 3: Sort by count (lowest first)
+    pieceCounts.sort((a, b) => (a.count ?? 0) - (b.count ?? 0));
+
+    // Step 4: Return the first one (rarest
+    if (pieceCounts.length === 0) {
+      return null;
+    }
+
+    return pieceCounts[0].pieceIndex;
   };
 
   getPieceBlocks = (
@@ -220,4 +245,38 @@ export class PieceManager {
   setEndgameMode(isEndgame: boolean) {
     this.isEndgameMode = isEndgame;
   }
+
+  incrementPieceAvailability = (pieceIndex: number) => {
+    const currentCount = this.pieceCount.get(pieceIndex) || 0;
+    this.pieceCount.set(pieceIndex, currentCount + 1);
+  };
+
+  updateAvailability = (bitfield: Buffer, isAdding: boolean) => {
+    // Loop through bitfield and update
+    for (let pieceIndex = 0; pieceIndex < this.totalPieces; pieceIndex++) {
+      const hasPiece = this.hasPiece(pieceIndex, bitfield);
+
+      if (hasPiece) {
+        // Add to the piece map
+        if (isAdding) {
+          const currentCount = this.pieceCount.get(pieceIndex) || 0;
+          this.pieceCount.set(pieceIndex, currentCount + 1);
+        } else {
+          const currentCount = this.pieceCount.get(pieceIndex) || 0;
+          this.pieceCount.set(pieceIndex, Math.max(0, currentCount - 1));
+        }
+      }
+    }
+  };
+
+  hasPiece = (pieceIndex: number, bitfield: Buffer): boolean => {
+    const byteIndex = Math.floor(pieceIndex / 8);
+    if (byteIndex >= bitfield.length) return false;
+
+    const bitIndex = pieceIndex % 8;
+    const byte = bitfield[byteIndex];
+    const mask = 1 << (7 - bitIndex);
+
+    return (byte & mask) !== 0;
+  };
 }
