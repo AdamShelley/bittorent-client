@@ -2,6 +2,10 @@ import path from "path";
 import fs from "fs";
 import type { Peer } from "../peer-protocol/peer";
 
+interface TorrentFile {
+  path: Buffer[];
+  length: number;
+}
 export class FileManager {
   private torrentInfo: any;
   private outputFile: number | null = null;
@@ -14,8 +18,58 @@ export class FileManager {
   private readonly PIECES_BEFORE_RESUME = 50;
   private readonly SECONDS_BEFORE_RESUME = 30;
 
+  private files: Array<{
+    path: string;
+    fd: number;
+    length: number;
+    offset: number;
+  }> = [];
+
   constructor(torrentInfo: any) {
     this.torrentInfo = torrentInfo;
+
+    if (this.torrentInfo?.files) {
+      this.setupMultiFile();
+    } else {
+      this.setupSingleFile();
+    }
+  }
+
+  setupMultiFile = () => {
+    const rootFolder = this.torrentInfo.name.toString();
+    const baseDir = path.join(process.cwd(), "downloaded", rootFolder);
+
+    let runningOffset = 0;
+
+    this.torrentInfo.files.forEach((file: TorrentFile) => {
+      // 1. Build the path
+      const pathArray: string[] = file.path.map((p: Buffer) => p.toString());
+      const fullPath: string = path.join(baseDir, ...pathArray);
+
+      // 2. Create directories
+      fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+
+      // 3. Open file
+      const fileExists: boolean = fs.existsSync(fullPath);
+      const fd: number = fs.openSync(fullPath, fileExists ? "r+" : "w");
+
+      // 4. Calculate offset
+      const fileOffset: number = runningOffset;
+      runningOffset += file.length;
+
+      this.files.push({
+        path: fullPath,
+        fd: fd,
+        length: file.length,
+        offset: fileOffset,
+      });
+    });
+
+    // Set resume file path
+    this.resumeFilePath = path.join(baseDir, ".resume.json");
+  };
+
+  setupSingleFile = () => {
     const fullFileName = this.torrentInfo.name.toString();
     const lastDotIndex = fullFileName.lastIndexOf(".");
     const folderName =
@@ -34,7 +88,7 @@ export class FileManager {
 
     // Resume file path (in the same folder as the download)
     this.resumeFilePath = path.join(this.outputFolder, ".resume.json");
-  }
+  };
 
   writePieceToFile(
     result: {
@@ -47,13 +101,16 @@ export class FileManager {
     pieceData: { pieceIndex: number },
     pieceLength: number
   ) {
-    fs.writeSync(
-      this.getOutputFile()!,
-      result.buffer!,
-      0,
-      result.pieceSize,
-      pieceData.pieceIndex * pieceLength
-    );
+    if (this.torrentInfo?.files > 0) {
+    } else {
+      fs.writeSync(
+        this.getOutputFile()!,
+        result.buffer!,
+        0,
+        result.pieceSize,
+        pieceData.pieceIndex * pieceLength
+      );
+    }
   }
 
   writeToResume(pieces: Set<number>, force: boolean = false) {
