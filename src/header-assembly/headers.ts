@@ -37,27 +37,28 @@ export const headerAssembly = (
   ) {
     // Get first HTTP/HTTPS tracker from announce-list
     const trackers = decodedValue["announce-list"];
-    let httpTracker = null;
+    let firstTracker = null;
 
     for (const tier of trackers) {
       const tracker = Array.isArray(tier) ? tier[0] : tier;
       const trackerUrl = tracker.toString("utf8");
 
-      // Skip UDP trackers since we don't support them yet
+      // Accept HTTP, HTTPS, or UDP trackers
       if (
         trackerUrl.startsWith("http://") ||
-        trackerUrl.startsWith("https://")
+        trackerUrl.startsWith("https://") ||
+        trackerUrl.startsWith("udp://")
       ) {
-        httpTracker = tracker;
+        firstTracker = tracker;
         break;
       }
     }
 
-    if (!httpTracker) {
-      throw new Error("No HTTP/HTTPS tracker found in announce-list");
+    if (!firstTracker) {
+      throw new Error("No supported tracker found in announce-list");
     }
 
-    announceURL = httpTracker;
+    announceURL = firstTracker;
   } else {
     throw new Error("Torrent has no announce URL or announce-list");
   }

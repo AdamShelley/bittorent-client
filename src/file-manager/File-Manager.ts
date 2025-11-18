@@ -28,7 +28,7 @@ export class FileManager {
   constructor(torrentInfo: any) {
     this.torrentInfo = torrentInfo;
 
-    if (this.torrentInfo?.files) {
+    if (this.torrentInfo.files) {
       this.setupMultiFile();
     } else {
       this.setupSingleFile();
@@ -38,7 +38,7 @@ export class FileManager {
   setupMultiFile = () => {
     const rootFolder = this.torrentInfo.name.toString();
     const baseDir = path.join(process.cwd(), "downloaded", rootFolder);
-
+    this.outputFolder = baseDir;
     let runningOffset = 0;
 
     this.torrentInfo.files.forEach((file: TorrentFile) => {
@@ -101,14 +101,39 @@ export class FileManager {
     pieceData: { pieceIndex: number },
     pieceLength: number
   ) {
-    if (this.torrentInfo?.files > 0) {
+    const pieceStart = pieceData.pieceIndex * pieceLength;
+    const pieceEnd =
+      pieceData.pieceIndex * pieceLength + (result?.pieceSize || 0);
+
+    if (this.files.length > 0) {
+      this.files.forEach((file) => {
+        const fileStart = file.offset;
+        const fileEnd = file.offset + file.length;
+
+        if (pieceStart < fileEnd && fileStart < pieceEnd) {
+          const overlapStart = Math.max(pieceStart, fileStart);
+          const overlapEnd = Math.min(pieceEnd, fileEnd);
+          const bytesToWrite = overlapEnd - overlapStart;
+
+          const offsetInFile = overlapStart - fileStart;
+          const offsetInBuffer = overlapStart - pieceStart;
+
+          fs.writeSync(
+            file.fd,
+            result.buffer!,
+            offsetInBuffer,
+            bytesToWrite,
+            offsetInFile
+          );
+        }
+      });
     } else {
       fs.writeSync(
         this.getOutputFile()!,
         result.buffer!,
         0,
         result.pieceSize,
-        pieceData.pieceIndex * pieceLength
+        pieceStart
       );
     }
   }
@@ -177,7 +202,19 @@ export class FileManager {
   }
 
   closeFile() {
-    fs.closeSync(this.getOutputFile()!);
+    if (this.files.length > 0) {
+      // Multi-file: close all files
+      this.files.forEach((file) => {
+        fs.closeSync(file.fd);
+      });
+    } else {
+      // Single-file: close the one file
+      fs.closeSync(this.getOutputFile()!);
+    }
+  }
+
+  getFiles() {
+    return this.files;
   }
 
   getOutputFile() {
