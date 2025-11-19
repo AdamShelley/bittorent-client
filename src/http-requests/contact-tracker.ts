@@ -102,7 +102,7 @@ export const getPeerList = async (
         return peerInfo;
       }
     } catch (error) {
-      console.log(`❌ Tracker ${trackerUrl} failed:`, (error as Error).message);
+      // console.log(`❌ Tracker ${trackerUrl} failed:`, (error as Error).message);
       continue;
     }
   }

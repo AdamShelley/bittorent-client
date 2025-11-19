@@ -366,6 +366,5 @@ export class Coordinator {
 
 // TODO:
 // after download check all files against hash?
-// Rarest-first piece selection strategy
 // Magnet link support
 // DHT (Distributed Hash Table)

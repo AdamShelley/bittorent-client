@@ -119,9 +119,9 @@ export class Peer extends EventEmitter {
           this.constructBitfield(this.clientBitfield!, this.totalPieces)
         );
 
-        console.log(
-          `Handshake with ${this.PEER_IP} complete, sending bitfield`
-        );
+        // console.log(
+        //   `Handshake with ${this.PEER_IP} complete, sending bitfield`
+        // );
 
         this.socket?.write(encodedBitfield);
 
@@ -133,10 +133,10 @@ export class Peer extends EventEmitter {
           // Waiting
         }
       } catch (e) {
-        console.warn(
-          `Handshake failed with ${this.PEER_IP}:`,
-          e instanceof Error ? e.message : "Unknown error"
-        );
+        // console.warn(
+        //   `Handshake failed with ${this.PEER_IP}:`,
+        //   e instanceof Error ? e.message : "Unknown error"
+        // );
         this.socket?.destroy();
         this.emit("disconnected");
         return;
@@ -244,7 +244,7 @@ export class Peer extends EventEmitter {
   handleError = (error: NodeJS.ErrnoException) => {
     const nodeError = error as NodeJS.ErrnoException;
     if (nodeError.code === "ECONNREFUSED") {
-      console.log(`Peer ${this.PEER_IP} refused connection`);
+      // console.log(`Peer ${this.PEER_IP} refused connection`);
       // Don't retry, move to next peer
     } else if (nodeError.code === "ENETUNREACH") {
     } else {
