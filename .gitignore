@@ -25,3 +25,11 @@ dist-ssr
 
 /test/.torrent
 /downloaded
+
+
+/client/node_modules
+/client/dist
+/client/out
+/client/.DS_Store
+/client/.eslintcache
+/client/*.log*

@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "electron-vite": "^4.0.1",
     "tsx": "^4.7.0",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"
