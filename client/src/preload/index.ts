@@ -2,14 +2,16 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Add functions you want available to React
-const api = {
-  openFile: () => ipcRenderer.invoke('dialog:openFile')
+const customApi = {
+  openFile: () => ipcRenderer.invoke('dialog:openFile'),
+  openFloatingWindow: (data) => ipcRenderer.send('open-floating-window', data),
+  onFloatingData: (callback) => ipcRenderer.on('floating-data', (_, payload) => callback(payload))
 }
 
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
+    contextBridge.exposeInMainWorld('api', customApi)
   } catch (error) {
     console.error(error)
   }
