@@ -3,9 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Add functions you want available to React
 const customApi = {
-  openFile: () => ipcRenderer.invoke('dialog:openFile'),
-  openFloatingWindow: (data) => ipcRenderer.send('open-floating-window', data),
-  onFloatingData: (callback) => ipcRenderer.on('floating-data', (_, payload) => callback(payload))
+  openFile: () => ipcRenderer.invoke('dialog:openFile')
 }
 
 if (process.contextIsolated) {

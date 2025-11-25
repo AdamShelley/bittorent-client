@@ -1,13 +1,17 @@
+import AddTorrentModal from '../Add-torrent/Add-torrent-modal'
+import { useModal } from '../ModalProvider/ModalProvider'
 import { Button } from '../ui/button'
 
 const Toolbar = () => {
+  const { openModal } = useModal()
+
   const openTorrentFile = async () => {
     const result = await window.api.openFile()
+
     console.log(result)
 
     if (result.filePaths?.length) {
-      // open the modal to select where to dl
-      window.api.openFloatingWindow(result.filePaths)
+      openModal(AddTorrentModal, { filePath: result.filePaths })
     }
   }
 

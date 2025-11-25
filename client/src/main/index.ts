@@ -4,8 +4,6 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
 import icon from '../../resources/icon.png?asset'
 
-let floatingWindow: BrowserWindow | null = null
-
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -38,38 +36,39 @@ function createWindow(): void {
   }
 }
 
-function createFloatingWindow(parent, data) {
-  const w = 400
-  const h = 300
+// function createFloatingWindow(parent, data) {
+//   const w = 400
+//   const h = 300
 
-  const parentBounds = parent.getBounds()
-  const x = parentBounds.x + (parentBounds.width - w) / 2
-  const y = parentBounds.y + (parentBounds.height - h) / 2
+//   const parentBounds = parent.getBounds()
+//   const x = parentBounds.x + (parentBounds.width - w) / 2
+//   const y = parentBounds.y + (parentBounds.height - h) / 2
 
-  floatingWindow = new BrowserWindow({
-    width: w,
-    height: h,
-    x,
-    y,
-    frame: true,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
+//   floatingWindow = new BrowserWindow({
+//     width: w,
+//     height: h,
+//     x,
+//     y,
+//     frame: true,
+//     webPreferences: {
+//       preload: join(__dirname, '../preload/index.js'),
+//       sandbox: false
+//     }
+//   })
 
-  // When the window finishes loading, send the data
-  floatingWindow.webContents.on('did-finish-load', () => {
-    floatingWindow.webContents.send('floating-data', data)
-  })
+//   // When the window finishes loading, send the data
+//   floatingWindow.webContents.on('did-finish-load', () => {
+//     if (!floatingWindow) return
+//     floatingWindow.webContents.send('floating-data', data)
+//   })
 
-  // Load your React page
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    floatingWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '/add-torrent.html')
-  } else {
-    floatingWindow.loadFile(join(__dirname, '../renderer/add-torrent.html'))
-  }
-}
+//   // Load your React page
+//   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+//     floatingWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '/add-torrent.html')
+//   } else {
+//     floatingWindow.loadFile(join(__dirname, '../renderer/add-torrent.html'))
+//   }
+// }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -102,10 +101,10 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 
-  ipcMain.on('open-floating-window', (event, data) => {
-    const parent = BrowserWindow.fromWebContents(event.sender)
-    if (parent) createFloatingWindow(parent, data)
-  })
+  // ipcMain.on('open-floating-window', (event, data) => {
+  //   const parent = BrowserWindow.fromWebContents(event.sender)
+  //   if (parent) createFloatingWindow(parent, data)
+  // })
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
