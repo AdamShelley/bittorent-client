@@ -12,7 +12,6 @@ import {
   FieldSet
 } from '../ui/field'
 import { Input } from '../ui/input'
-import { Switch } from '../ui/switch'
 
 interface AddTorrentProps {
   resultFilePaths: string
@@ -25,6 +24,10 @@ const AddTorrentModal = ({ resultFilePaths }: AddTorrentProps) => {
   const { closeModal } = useModal()
 
   console.log(resultFilePaths)
+
+  const startDownload = () => {
+    closeModal()
+  }
 
   return (
     <ModalShell onClose={closeModal}>
@@ -55,7 +58,7 @@ const AddTorrentModal = ({ resultFilePaths }: AddTorrentProps) => {
 
           <div>
             <Button variant="ghost">Cancel</Button>
-            <Button>Download</Button>
+            <Button onClick={startDownload}>Download</Button>
           </div>
         </div>
       </div>
