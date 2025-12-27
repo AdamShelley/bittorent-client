@@ -3,7 +3,10 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Add functions you want available to React
 const customApi = {
-  openFile: () => ipcRenderer.invoke('dialog:openFile')
+  openFile: () => ipcRenderer.invoke('dialog:openFile'),
+  openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
+  downloadFile: (torrentPath: string, downloadLocation: string) =>
+    ipcRenderer.invoke('download:start', { torrentPath, downloadLocation })
 }
 
 if (process.contextIsolated) {

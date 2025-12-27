@@ -33,3 +33,4 @@ dist-ssr
 /client/.DS_Store
 /client/.eslintcache
 /client/*.log*
+/client/downloaded

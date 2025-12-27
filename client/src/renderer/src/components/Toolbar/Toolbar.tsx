@@ -11,7 +11,7 @@ const Toolbar = () => {
     console.log(result)
 
     if (result.filePaths?.length) {
-      openModal(AddTorrentModal, { resultFilePaths: result.filePaths })
+      openModal(AddTorrentModal, { resultFilePaths: result.filePaths[0] })
     }
   }
 

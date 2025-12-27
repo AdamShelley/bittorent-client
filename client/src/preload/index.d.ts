@@ -4,7 +4,9 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: {
-      openFile: () => { filePaths: string[] }
+      openFile: () => Promise<{ filePaths: string[]; canceled: boolean }>
+      openDirectory: () => Promise<{ filePaths: string[]; canceled: boolean }>
+      downloadFile: (torrentPath: string, downloadLocation: string) => Promise<unknown>
     }
   }
 }

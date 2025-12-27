@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
 import icon from '../../resources/icon.png?asset'
+import { downloadFile } from './src/cli/frontend'
 
 function createWindow(): void {
   // Create the browser window.
@@ -105,6 +106,31 @@ app.whenReady().then(() => {
   //   const parent = BrowserWindow.fromWebContents(event.sender)
   //   if (parent) createFloatingWindow(parent, data)
   // })
+
+  ipcMain.handle('dialog:openDirectory', async () => {
+    return await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    })
+  })
+
+  ipcMain.handle('download:start', async (event, args) => {
+    console.log('=== IPC Handler Called ===')
+    console.log('Received args:', args)
+    console.log('Args type:', typeof args)
+
+    try {
+      const { torrentPath, downloadLocation } = args
+      console.log('Extracted torrentPath:', torrentPath)
+      console.log('Extracted downloadLocation:', downloadLocation)
+
+      const data = await downloadFile(torrentPath, downloadLocation)
+      console.log('Download started successfully')
+      return data
+    } catch (error) {
+      console.error('Download error:', error)
+      throw error
+    }
+  })
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
