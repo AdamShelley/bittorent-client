@@ -27,6 +27,7 @@ export class FileManager {
 
   constructor(torrentInfo: any, downloadLocation: string) {
     this.torrentInfo = torrentInfo
+    console.log(downloadLocation)
     if (downloadLocation.length) {
       this.outputFolder = downloadLocation
     }
@@ -40,7 +41,14 @@ export class FileManager {
 
   setupMultiFile = () => {
     const rootFolder = this.torrentInfo.name.toString()
-    const baseDir = path.join(process.cwd(), 'downloaded', rootFolder)
+
+    let baseDir = ''
+    if (this.outputFolder) {
+      baseDir = path.join(this.outputFolder, rootFolder)
+    } else {
+      baseDir = path.join(process.cwd(), 'downloaded', rootFolder)
+    }
+
     this.outputFolder = baseDir
     let runningOffset = 0
 
@@ -77,8 +85,15 @@ export class FileManager {
     const lastDotIndex = fullFileName.lastIndexOf('.')
     const folderName = lastDotIndex > 0 ? fullFileName.substring(0, lastDotIndex) : fullFileName
 
-    // Create download folder structure
-    this.outputFolder = path.join(process.cwd(), 'downloaded', folderName)
+    let baseDir = ''
+    if (this.outputFolder) {
+      baseDir = path.join(this.outputFolder, folderName)
+    } else {
+      baseDir = path.join(process.cwd(), 'downloaded', folderName)
+    } // Create download folder structure
+
+    this.outputFolder = baseDir
+
     fs.mkdirSync(this.outputFolder, { recursive: true })
 
     // File path
@@ -183,7 +198,7 @@ export class FileManager {
         fs.closeSync(file.fd)
       })
     } else {
-      // Single-file: close the one file
+      // Single-file: close thpe one file
       fs.closeSync(this.getOutputFile()!)
     }
   }
