@@ -1,5 +1,5 @@
 import { ModalProvider } from './components/ModalProvider/ModalProvider'
-import Table from './components/Toolbar/Table'
+import Table from './components/download-table/Table'
 import Toolbar from './components/Toolbar/Toolbar'
 import { ThemeProvider } from './providers/theme-provider'
 
