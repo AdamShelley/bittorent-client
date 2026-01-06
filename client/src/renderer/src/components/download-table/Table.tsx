@@ -1,13 +1,16 @@
-import { columns, Payment } from './columns'
+import { columns } from './columns'
 import { DataTable } from './data-table'
 
 export default function Table() {
-  const data: Payment[] = [
+  const data = [
     {
       id: 'test',
-      amount: 123,
       status: 'pending',
-      email: 'test@test.com'
+      name: 'Test Torrent',
+      size: 15,
+      downloaded: 5,
+      dl_speed: 500,
+      ul_speed: 200
     }
   ]
 
