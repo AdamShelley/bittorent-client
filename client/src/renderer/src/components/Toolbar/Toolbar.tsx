@@ -1,3 +1,4 @@
+import { BookOpen, FolderOpen, Pause, Play, X, XCircle } from 'lucide-react'
 import AddTorrentModal from '../Add-torrent/Add-torrent-modal'
 import { useModal } from '../ModalProvider/ModalProvider'
 import { Button } from '../ui/button'
@@ -16,18 +17,27 @@ const Toolbar = () => {
   }
 
   return (
-    <div className=" p-3 flex-1 flex items-center justify-start">
-      <ul className="flex gap-4 items-center justify-center">
+    <div className="flex items-center justify-start">
+      <ul className="flex gap-1 items-center justify-center">
         <li>
-          <Button variant="outline" onClick={openTorrentFile}>
-            Open
+          <Button variant="ghost" onClick={openTorrentFile}>
+            <FolderOpen />
           </Button>
         </li>
         <li>
-          <Button variant="outline">Cancel</Button>
+          <Button variant="ghost">
+            <XCircle />
+          </Button>
         </li>
         <li>
-          <Button variant="outline">Pause</Button>
+          <Button variant="ghost">
+            <Play />
+          </Button>
+        </li>
+        <li>
+          <Button variant="ghost">
+            <Pause />
+          </Button>
         </li>
       </ul>
     </div>
