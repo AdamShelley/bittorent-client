@@ -6,6 +6,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../ui/resi
 export const Dashboard = () => {
   return (
     <div className="w-screen h-screen img-container">
+      <Toolbar />
       <ResizablePanelGroup direction="horizontal">
         <ResizablePanel defaultSize={25}>
           <AppSidebar />
@@ -13,7 +14,6 @@ export const Dashboard = () => {
         <ResizableHandle />
         <ResizablePanel defaultSize={85}>
           <div className="flex flex-col align-start justify-start">
-            <Toolbar />
             <Table />
           </div>
         </ResizablePanel>

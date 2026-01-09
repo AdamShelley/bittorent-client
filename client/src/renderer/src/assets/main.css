@@ -7,5 +7,6 @@
 }
 
 .img-container > * {
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(10px);
+  /* background-color: rgba(0, 0, 0, 0.7); */
 }
