@@ -6,7 +6,13 @@ const customApi = {
   openFile: () => ipcRenderer.invoke('dialog:openFile'),
   openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
   downloadFile: (torrentPath: string, downloadLocation: string) =>
-    ipcRenderer.invoke('download:start', { torrentPath, downloadLocation })
+    ipcRenderer.invoke('download:start', { torrentPath, downloadLocation }),
+  onTorrentProgress: (callback: (data: { id: string; progress: number }) => void) => {
+    ipcRenderer.on('torrent:progress', (_, data) => callback(data))
+  },
+  removeTorrentProgressListener: () => {
+    ipcRenderer.removeAllListeners('torrent:progress')
+  }
 }
 
 if (process.contextIsolated) {

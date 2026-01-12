@@ -4,10 +4,14 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
 import icon from '../../resources/icon.png?asset'
 import { downloadFile } from './src/cli/frontend'
+import { ProgressManager } from './src/Progress/Progress'
+
+let mainWindow: BrowserWindow | null = null
+let progressManager: ProgressManager | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -20,8 +24,12 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow?.show()
   })
+
+  if (progressManager) {
+    progressManager.attachWindow(mainWindow)
+  }
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -113,23 +121,16 @@ app.whenReady().then(() => {
     })
   })
 
-  ipcMain.handle('download:start', async (event, args) => {
-    console.log('=== IPC Handler Called ===')
-    console.log('Received args:', args)
-    console.log('Args type:', typeof args)
+  ipcMain.handle('download:start', async (_, args) => {
+    const { torrentPath, downloadLocation } = args
 
-    try {
-      const { torrentPath, downloadLocation } = args
-      console.log('Extracted torrentPath:', torrentPath)
-      console.log('Extracted downloadLocation:', downloadLocation)
+    progressManager = await downloadFile(torrentPath, downloadLocation)
 
-      const data = await downloadFile(torrentPath, downloadLocation)
-      console.log('Download started successfully')
-      return data
-    } catch (error) {
-      console.error('Download error:', error)
-      throw error
+    if (mainWindow && progressManager) {
+      progressManager.attachWindow(mainWindow)
     }
+
+    return { ok: true }
   })
 })
 

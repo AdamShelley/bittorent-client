@@ -13,7 +13,7 @@ export const Dashboard = () => {
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize={85}>
-          <div className="flex flex-col align-start justify-start">
+          <div className="flex flex-col align-start justify-start h-full">
             <Table />
           </div>
         </ResizablePanel>

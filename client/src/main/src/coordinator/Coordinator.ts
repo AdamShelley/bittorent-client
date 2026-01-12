@@ -23,6 +23,7 @@ export class Coordinator {
   trackerInterval: number = 1800
   interestedPeers: Set<Peer> = new Set()
   unchokedPeers: Set<Peer> = new Set()
+  progress: number = 0
 
   constructor(
     peerList: PeerReturnType[],
@@ -183,11 +184,13 @@ export class Coordinator {
       const speedMBps = this.bytesDownloaded / elapsedSeconds / (1024 * 1024)
       const progress = ((this.pieceManager.getCompletedCount() / this.totalPieces) * 100).toFixed(1)
 
-      console.log(
-        `Progress: ${this.pieceManager.getCompletedCount()}/${
-          this.totalPieces
-        } (${progress}%) | Speed: ${speedMBps.toFixed(2)} MB/s | Active: ${activePeers} peers`
-      )
+      // console.log(
+      //   `Progress: ${this.pieceManager.getCompletedCount()}/${
+      //     this.totalPieces
+      //   } (${progress}%) | Speed: ${speedMBps.toFixed(2)} MB/s | Active: ${activePeers} peers`
+      // )
+
+      this.progress = (this.pieceManager.getCompletedCount() / this.totalPieces) * 100
 
       this.fileManager.writeToResume(this.pieceManager.getCompletedPieces(), false)
 

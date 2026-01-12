@@ -65,5 +65,5 @@ export const downloadFile = async (torrentPath: string, downloadLocation: string
   if (!peerList) throw new Error('Getting peer list failed')
 
   // Connect to peers, request pieces etc
-  connect(peerList, headerAssemblyResults, infoSection.decodedValue, downloadLocation)
+  return connect(peerList, headerAssemblyResults, infoSection.decodedValue, downloadLocation)
 }
