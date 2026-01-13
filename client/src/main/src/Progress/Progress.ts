@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { Coordinator } from '../coordinator/Coordinator'
+import { torrentRegistry } from '../../../main/torrent-store'
 
 export class ProgressManager {
   activeCoordinator
@@ -19,16 +20,16 @@ export class ProgressManager {
 
   emitCompletedPercent() {
     if (!this.win || this.win.isDestroyed()) return
-    const infoHashHex = this.activeCoordinator.infoHash?.toString('hex')
+
+    const id = this.activeCoordinator.infoHash.toString('hex')
+
+    torrentRegistry.update(id, {
+      downloadedBytes: this.activeCoordinator.bytesDownloaded
+    })
 
     this.win.webContents.send('torrent:progress', {
-      id: infoHashHex,
-      name: this.activeCoordinator.torrent.name.toString(),
-      size: this.activeCoordinator.totalFileSize,
-      downloaded: this.activeCoordinator.bytesDownloaded,
+      id,
       progress: this.activeCoordinator.progress
-      //   dl_speed: this.activeCoordinator.downloadSpeed,
-      //   ul_speed: this.activeCoordinator.uploadSpeed
     })
   }
 }

@@ -5,6 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { downloadFile } from './src/cli/frontend'
 import { ProgressManager } from './src/Progress/Progress'
+import { torrentRegistry } from './torrent-store'
 
 let mainWindow: BrowserWindow | null = null
 let progressManager: ProgressManager | null = null
@@ -115,6 +116,8 @@ app.whenReady().then(() => {
   //   if (parent) createFloatingWindow(parent, data)
   // })
 
+  torrentRegistry.load()
+
   ipcMain.handle('dialog:openDirectory', async () => {
     return await dialog.showOpenDialog({
       properties: ['openDirectory']
@@ -124,7 +127,17 @@ app.whenReady().then(() => {
   ipcMain.handle('download:start', async (_, args) => {
     const { torrentPath, downloadLocation } = args
 
+    const id = crypto.randomUUID()
+
     progressManager = await downloadFile(torrentPath, downloadLocation)
+
+    torrentRegistry.add({
+      id,
+      torrentPath,
+      downloadLocation,
+      downloadedBytes: 0,
+      totalBytes: progressManager.activeCoordinator.totalFileSize
+    })
 
     if (mainWindow && progressManager) {
       progressManager.attachWindow(mainWindow)
