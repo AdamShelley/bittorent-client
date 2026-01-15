@@ -1,4 +1,4 @@
-# client
+# bittorrent-client
 
 An Electron application with React and TypeScript
 

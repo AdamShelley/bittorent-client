@@ -1,17 +1,7 @@
-import { ModalProvider } from './components/ModalProvider/ModalProvider'
-import { ThemeProvider } from './providers/theme-provider'
-import { Dashboard } from './components/Dashboard/dashboard'
-
 function App(): React.JSX.Element {
-  return (
-    <ThemeProvider defaultTheme="dark" storageKey="ui-theme">
-      <ModalProvider>
-        <main className="flex">
-          <Dashboard />
-        </main>
-      </ModalProvider>
-    </ThemeProvider>
-  )
+  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+
+  return <div>Hello</div>
 }
 
 export default App

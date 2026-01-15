@@ -1,18 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-
 import icon from '../../resources/icon.png?asset'
-import { downloadFile } from './src/cli/frontend'
-import { ProgressManager } from './src/Progress/Progress'
-import { torrentRegistry } from './torrent-store'
-
-let mainWindow: BrowserWindow | null = null
-let progressManager: ProgressManager | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  mainWindow = new BrowserWindow({
+  const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -25,12 +18,8 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow?.show()
+    mainWindow.show()
   })
-
-  if (progressManager) {
-    progressManager.attachWindow(mainWindow)
-  }
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -46,40 +35,6 @@ function createWindow(): void {
   }
 }
 
-// function createFloatingWindow(parent, data) {
-//   const w = 400
-//   const h = 300
-
-//   const parentBounds = parent.getBounds()
-//   const x = parentBounds.x + (parentBounds.width - w) / 2
-//   const y = parentBounds.y + (parentBounds.height - h) / 2
-
-//   floatingWindow = new BrowserWindow({
-//     width: w,
-//     height: h,
-//     x,
-//     y,
-//     frame: true,
-//     webPreferences: {
-//       preload: join(__dirname, '../preload/index.js'),
-//       sandbox: false
-//     }
-//   })
-
-//   // When the window finishes loading, send the data
-//   floatingWindow.webContents.on('did-finish-load', () => {
-//     if (!floatingWindow) return
-//     floatingWindow.webContents.send('floating-data', data)
-//   })
-
-//   // Load your React page
-//   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-//     floatingWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '/add-torrent.html')
-//   } else {
-//     floatingWindow.loadFile(join(__dirname, '../renderer/add-torrent.html'))
-//   }
-// }
-
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -94,12 +49,6 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  ipcMain.handle('dialog:openFile', async () => {
-    return await dialog.showOpenDialog({
-      properties: ['openFile', 'openDirectory', 'multiSelections']
-    })
-  })
-
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
@@ -109,41 +58,6 @@ app.whenReady().then(() => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-
-  // ipcMain.on('open-floating-window', (event, data) => {
-  //   const parent = BrowserWindow.fromWebContents(event.sender)
-  //   if (parent) createFloatingWindow(parent, data)
-  // })
-
-  torrentRegistry.load()
-
-  ipcMain.handle('dialog:openDirectory', async () => {
-    return await dialog.showOpenDialog({
-      properties: ['openDirectory']
-    })
-  })
-
-  ipcMain.handle('download:start', async (_, args) => {
-    const { torrentPath, downloadLocation } = args
-
-    const id = crypto.randomUUID()
-
-    progressManager = await downloadFile(torrentPath, downloadLocation)
-
-    torrentRegistry.add({
-      id,
-      torrentPath,
-      downloadLocation,
-      downloadedBytes: 0,
-      totalBytes: progressManager.activeCoordinator.totalFileSize
-    })
-
-    if (mainWindow && progressManager) {
-      progressManager.attachWindow(mainWindow)
-    }
-
-    return { ok: true }
   })
 })
 
