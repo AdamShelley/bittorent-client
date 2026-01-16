@@ -1,7 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import fs from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { OpenFileResult } from '../types/types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -49,10 +51,26 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
   createWindow()
+
+  ipcMain.handle('open-file', async (): Promise<OpenFileResult> => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile']
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return { canceled: true }
+    }
+
+    const filePath = filePaths[0]
+
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return { canceled: false, filePath, content }
+    } catch (err) {
+      return { canceled: false, filePath, content: `Error reading file: ${err}` }
+    }
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

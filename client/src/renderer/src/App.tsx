@@ -1,7 +1,11 @@
-function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+import Dashboard from './components/Dashboard/Dashboard'
 
-  return <div>Hello</div>
+function App(): React.JSX.Element {
+  return (
+    <div>
+      <Dashboard />
+    </div>
+  )
 }
 
 export default App

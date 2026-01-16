@@ -13,7 +13,7 @@ export class StartTorrent {
     this.downloadLocation = downloadLocation
   }
 
-  async start() {
+  async start(): Promise<void> {
     console.log('STARTING DOWNLOAD')
     if (!this.torrentPath) {
       console.error('Error: No torrent file path provided.\nUsage: node cli.js <torrent-file-path>')
@@ -56,6 +56,6 @@ export class StartTorrent {
     if (!peerList) throw new Error('Getting peer list failed')
 
     // Connect to peers, request pieces etc
-    connect(peerList, headerAssemblyResults, infoSection.decodedValue, this.downloadLocation)
+    connect(peerList, headerAssemblyResults, infoSection.decodedValue)
   }
 }

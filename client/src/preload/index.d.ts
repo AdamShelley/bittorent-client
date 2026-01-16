@@ -1,8 +1,11 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import { OpenFileResult } from 'src/types/types'
 
 declare global {
   interface Window {
     electron: ElectronAPI
-    api: unknown
+    api: {
+      openFileDialog: () => Promise<OpenFileResult>
+    }
   }
 }
