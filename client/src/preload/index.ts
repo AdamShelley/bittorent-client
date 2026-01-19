@@ -4,7 +4,9 @@ import { OpenFileResult } from '../types/types'
 
 // Custom APIs for renderer
 const api = {
-  openFileDialog: (): Promise<OpenFileResult> => ipcRenderer.invoke('open-file')
+  openFileDialog: (): Promise<OpenFileResult> => ipcRenderer.invoke('open-file'),
+  startDownload: (torrentPath: string): Promise<void> =>
+    ipcRenderer.invoke('start-download', torrentPath)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

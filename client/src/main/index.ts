@@ -4,6 +4,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { OpenFileResult } from '../types/types'
+import { downloadFile } from './torrent/cli/frontend'
 
 function createWindow(): void {
   // Create the browser window.
@@ -70,6 +71,11 @@ app.whenReady().then(() => {
     } catch (err) {
       return { canceled: false, filePath, content: `Error reading file: ${err}` }
     }
+  })
+
+  ipcMain.handle('start-download', async (event, torrentPath: string) => {
+    const startDownload = await downloadFile(torrentPath)
+    return startDownload
   })
 
   app.on('activate', function () {
