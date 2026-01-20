@@ -1,52 +1,9 @@
-import fs from 'fs'
-import { decode } from '../bencode/bencode'
-import { headerAssembly } from '../header-assembly/headers'
-import { getPeerList } from '../http-requests/contact-tracker'
-import { connect } from '../peer-protocol/connect'
+import { StartTorrent } from '../Electron-entry/StartTorrent'
 
-export const downloadFile = async (torrentPath: string) => {
-  if (!torrentPath) {
-    console.error('Error: No torrent file path provided.')
-    process.exit(1)
-  }
+export const downloadFile = async (torrentPath: string): Promise<StartTorrent> => {
+  console.log('Torrent Path: ', torrentPath)
+  const newTorrent = new StartTorrent(torrentPath, './')
+  newTorrent.start()
 
-  if (!fs.existsSync(torrentPath)) {
-    console.error(`Error: File not found at path "${torrentPath}".`)
-    process.exit(1)
-  }
-
-  let buffer: Buffer
-  try {
-    buffer = fs.readFileSync(torrentPath)
-  } catch (err) {
-    console.error(`Error: Failed to read file "${torrentPath}".\n${(err as Error).message}`)
-    process.exit(1)
-  }
-
-  // DECODE FILE
-  const searchString = '4:info'
-  const position = buffer.indexOf(searchString)
-  const infoStart = position + searchString.length
-  const decoded = decode(buffer, 0)
-  const infoSection = decode(buffer, infoStart)
-
-  if (!decoded) throw new Error('Decoding failed')
-  if (!infoSection) throw new Error('No info section')
-
-  const infoEnd = infoSection.index
-  const rawInfoBytes = buffer.subarray(infoStart, infoEnd)
-
-  // ASSEMBLE HEADERS
-  const headerAssemblyResults = headerAssembly(decoded.decodedValue, rawInfoBytes)
-
-  if (!headerAssemblyResults) throw new Error('Assembling header failed')
-
-  // GET PEER LIST, IDS, PORTS
-  const peerList = await getPeerList(headerAssemblyResults, decoded.decodedValue['announce-list'])
-  if (!peerList) throw new Error('Getting peer list failed')
-
-  console.log('Got Peer list, ready to connect')
-
-  // Connect to peers, request pieces etc
-  // connect(peerList, headerAssemblyResults, infoSection.decodedValue)
+  return newTorrent
 }
