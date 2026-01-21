@@ -4,11 +4,13 @@ import { headerAssembly } from '../header-assembly/headers'
 import { getPeerList } from '../http-requests/contact-tracker'
 import { connect } from '../peer-protocol/connect'
 import { DecodedTorrent } from '../../../types/types'
+import { Coordinator } from '../coordinator/Coordinator'
 
 export class StartTorrent {
   torrentPath: string | null = null
   downloadLocation: string | null = null
   torrent: DecodedTorrent | null = null
+  coordinator: Coordinator | null = null
 
   constructor(torrentPath: string, downloadLocation: string) {
     this.torrentPath = torrentPath
@@ -68,9 +70,13 @@ export class StartTorrent {
       if (!peerList) throw new Error('Getting peer list failed')
 
       // Connect to peers, request pieces etc
-      connect(peerList, headerAssemblyResults, infoSection.decodedValue)
+      this.coordinator = connect(peerList, headerAssemblyResults, infoSection.decodedValue)
     } catch (e) {
       console.warn(e)
     }
+  }
+
+  pause(): void {
+    this.coordinator?.pauseDownload()
   }
 }

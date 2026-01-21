@@ -6,6 +6,7 @@ import icon from '../../resources/icon.png?asset'
 import { OpenFileResult } from '../types/types'
 import { downloadFile } from './torrent/cli/frontend'
 import { StartTorrent } from './torrent/Electron-entry/StartTorrent'
+import { registerTorrentIpc } from './ipc/torrent.ipc'
 
 function createWindow(): void {
   // Create the browser window.
@@ -17,7 +18,8 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      devTools: true
     }
   })
 
@@ -54,6 +56,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  registerTorrentIpc()
 
   ipcMain.handle('open-file', async (): Promise<OpenFileResult> => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -72,15 +75,6 @@ app.whenReady().then(() => {
     } catch (err) {
       return { canceled: false, filePath, content: `Error reading file: ${err}` }
     }
-  })
-
-  ipcMain.handle('start-download', async (event, torrentPath: string): Promise<StartTorrent> => {
-    const torrent = await downloadFile(torrentPath)
-    return torrent
-  })
-
-  ipcMain.handle('pause-download', async (event, torrentId: string) => {
-    const pauseDownload = null
   })
 
   app.on('activate', function () {
