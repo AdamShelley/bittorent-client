@@ -24,12 +24,17 @@ class TorrentManager {
     this.torrents.get(id)?.pause()
   }
 
-  listTorrents() {
+  listTorrents(): { id: string; path: string | null; status: string | null }[] {
     return [...this.torrents.entries()].map(([id, torrent]) => ({
       id,
       path: torrent.torrentPath,
-      status: 'downloading' // or real state
+      status: 'downloading'
     }))
+  }
+
+  resumeTorrent(id: string): void {
+    console.log('Resuming ', id)
+    this.torrents.get(id)?.resumeTorrent()
   }
 }
 

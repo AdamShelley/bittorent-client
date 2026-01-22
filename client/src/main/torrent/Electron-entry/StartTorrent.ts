@@ -79,4 +79,8 @@ export class StartTorrent {
   pause(): void {
     this.coordinator?.pauseDownload()
   }
+
+  async resumeTorrent(): Promise<void> {
+    await this.coordinator?.resumeDownload()
+  }
 }

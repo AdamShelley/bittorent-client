@@ -8,6 +8,7 @@ declare global {
       openFileDialog: () => Promise<OpenFileResult>
       startDownload: (torrentPath: string) => Promise<void>
       pauseDownload: (torrentId: string) => Promise<void>
+      resumeDownload: (torrentId: string) => Promise<void>
     }
   }
 }

@@ -7,7 +7,9 @@ const api = {
   openFileDialog: (): Promise<OpenFileResult> => ipcRenderer.invoke('open-file'),
   startDownload: (torrentPath: string) => ipcRenderer.invoke('start-download', torrentPath),
   pauseDownload: (torrentId: string): Promise<void> =>
-    ipcRenderer.invoke('pause-download', torrentId)
+    ipcRenderer.invoke('pause-download', torrentId),
+  resumeDownload: (torrentId: string): Promise<void> =>
+    ipcRenderer.invoke('resume-download', torrentId)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

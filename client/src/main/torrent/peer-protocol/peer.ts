@@ -328,5 +328,22 @@ export class Peer extends EventEmitter {
     this.socket?.write(haveMessage)
   }
 
-  pause = (): void => {}
+  pause = (): void => {
+    // Cancel pending + queued requests
+    this.requestQueue = []
+    this.pendingRequests.forEach((req) => {
+      this.socket?.write(encodeCancel(req.pieceIndex, req.offset, req.length))
+    })
+    this.pendingRequests = []
+
+    // Choke + disconnect
+    try {
+      this.socket?.end()
+      this.socket?.destroy()
+    } catch (e) {
+      console.warn(e)
+    }
+
+    this.removeAllListeners()
+  }
 }

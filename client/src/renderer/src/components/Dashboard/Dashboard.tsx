@@ -23,10 +23,16 @@ const Dashboard = (): React.JSX.Element => {
     await window.api.pauseDownload(torrentId)
   }
 
+  const resumeTorrent = async (torrentId: string): Promise<void> => {
+    console.log('Resuming')
+    await window.api.resumeDownload(torrentId)
+  }
+
   return (
-    <div>
+    <div className="flex gap-4">
       <button onClick={showDialog}>Open Torrent</button>
       <button onClick={() => pauseTorrent('')}>Pause Torrent</button>
+      <button onClick={() => resumeTorrent('')}>Resume Torrent</button>
     </div>
   )
 }

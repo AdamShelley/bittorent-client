@@ -24,6 +24,9 @@ export class Coordinator {
   trackerInterval: number = 1800
   interestedPeers: Set<Peer> = new Set()
   unchokedPeers: Set<Peer> = new Set()
+  isPaused = false
+  private unchokeTimer?: NodeJS.Timeout
+  private trackerTimer?: NodeJS.Timeout
 
   constructor(
     peerList: PeerReturnType[],
@@ -55,9 +58,9 @@ export class Coordinator {
     this.startPeerConnection()
     this.unchokeRotation()
 
-    setInterval(() => {
-      this.unchokeRotation()
-    }, 30 * 1000)
+    this.unchokeTimer = setInterval(() => {
+      if (!this.isPaused) this.unchokeRotation()
+    }, 30_000)
 
     this.scheduleTrackerAnnounce()
     this.setupGracefulShutdown()
@@ -92,14 +95,41 @@ export class Coordinator {
   }
 
   pauseDownload(): void {
-    if (!this.peerList || !this.peerList.length || !this.headers) return
+    if (this.isPaused) return
+    this.isPaused = true
 
-    this.peers.forEach((peer: Peer) => this.detatchListeners(peer))
+    console.log('⏸ Pausing torrent...')
+    this.stopTimers()
+
+    this.peers.forEach((peer) => peer.pause())
+
+    this.peers = []
+    this.interestedPeers.clear()
+    this.unchokedPeers.clear()
+
+    this.fileManager.writeToResume(this.pieceManager.getCompletedPieces(), false)
+  }
+
+  resumeDownload(): void {
+    if (!this.isPaused) return
+    this.isPaused = false
+
+    console.log('▶ Resuming torrent...')
+    this.startPeerConnection()
+    this.scheduleTrackerAnnounce()
+  }
+
+  getAnnounceStats(): { uploaded: number; downloaded: number; left: number } {
+    return {
+      uploaded: 0,
+      downloaded: this.bytesDownloaded,
+      left: this.totalFileSize - this.pieceManager.getCompletedCount() * this.pieceLength
+    }
   }
 
   detatchListeners(peer: Peer): void {
+    console.log('Pausing:', peer)
     peer.pause()
-    return
   }
 
   onPeerUnchoked = (peer: Peer): void => {
@@ -222,11 +252,12 @@ export class Coordinator {
   }
 
   assignPieceToDownload = (peer: Peer): void => {
+    if (this.isPaused) return
+
     const pieceIndex = this.pieceManager.getPieceToDownload(peer)
     if (pieceIndex == null) return
 
     const blocks = this.pieceManager.getPieceBlocks(pieceIndex)
-
     blocks?.forEach((block) => {
       peer.requestPiece(pieceIndex, block.offset, block.length)
     })
@@ -247,7 +278,14 @@ export class Coordinator {
     if (activePeers < 50) {
       if (!this.headers) return
 
-      const newPeers = await getPeerList(this.headers)
+      const newPeers = await getPeerList(
+        {
+          ...this.headers!,
+          ...this.getAnnounceStats()
+        },
+        this.torrent['announce-list']
+      )
+
       const existingIPs = new Set(this.peers.map((p) => `${p.PEER_IP}:${p.PEER_PORT}`))
 
       newPeers
@@ -267,12 +305,17 @@ export class Coordinator {
   }
 
   scheduleTrackerAnnounce = (): void => {
-    setInterval(async () => {
-      // console.log("🔄 Re-announcing to tracker for fresh peers...");
-
+    this.trackerTimer = setInterval(async () => {
+      if (this.isPaused) return
       if (!this.headers) return
 
-      const newPeers = await getPeerList(this.headers)
+      const newPeers = await getPeerList(
+        {
+          ...this.headers!,
+          ...this.getAnnounceStats()
+        },
+        this.torrent['announce-list']
+      )
 
       // Add peers we don't already have
       const existingIPs = new Set(this.peers.map((p) => `${p.PEER_IP}:${p.PEER_PORT}`))
@@ -334,6 +377,22 @@ export class Coordinator {
 
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
+  }
+
+  startTimers(): void {
+    this.unchokeTimer = setInterval(() => {
+      if (!this.isPaused) this.unchokeRotation()
+    }, 30_000)
+
+    this.scheduleTrackerAnnounce()
+  }
+
+  stopTimers(): void {
+    if (this.unchokeTimer) clearInterval(this.unchokeTimer)
+    if (this.trackerTimer) clearInterval(this.trackerTimer)
+
+    this.unchokeTimer = undefined
+    this.trackerTimer = undefined
   }
 }
 
