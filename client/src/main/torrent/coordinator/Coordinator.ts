@@ -116,7 +116,8 @@ export class Coordinator {
 
     console.log('▶ Resuming torrent...')
     this.startPeerConnection()
-    this.scheduleTrackerAnnounce()
+    this.unchokeRotation()
+    this.startTimers()
   }
 
   getAnnounceStats(): { uploaded: number; downloaded: number; left: number } {

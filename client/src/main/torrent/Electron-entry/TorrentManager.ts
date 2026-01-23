@@ -32,9 +32,9 @@ class TorrentManager {
     }))
   }
 
-  resumeTorrent(id: string): void {
+  async resumeTorrent(id: string): Promise<void> {
     console.log('Resuming ', id)
-    this.torrents.get(id)?.resumeTorrent()
+    await this.torrents.get(id)?.resumeTorrent()
   }
 }
 

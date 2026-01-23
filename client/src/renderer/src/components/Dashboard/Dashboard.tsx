@@ -1,4 +1,8 @@
+import { useState } from 'react'
+
 const Dashboard = (): React.JSX.Element => {
+  const [currentTorrentId, setCurrentTorrentId] = useState<string | null>(null)
+
   const showDialog = async (): Promise<void> => {
     const result = await window.api.openFileDialog()
 
@@ -12,6 +16,7 @@ const Dashboard = (): React.JSX.Element => {
   const startDownload = async (torrentPath: string): Promise<void> => {
     const download = await window.api.startDownload(torrentPath)
     console.log(download)
+    setCurrentTorrentId(download.id)
 
     setTimeout(() => {
       pauseTorrent(download.id)
@@ -31,8 +36,12 @@ const Dashboard = (): React.JSX.Element => {
   return (
     <div className="flex gap-4">
       <button onClick={showDialog}>Open Torrent</button>
-      <button onClick={() => pauseTorrent('')}>Pause Torrent</button>
-      <button onClick={() => resumeTorrent('')}>Resume Torrent</button>
+      <button onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}>
+        Pause Torrent
+      </button>
+      <button onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}>
+        Resume Torrent
+      </button>
     </div>
   )
 }

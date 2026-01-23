@@ -234,6 +234,10 @@ export class Peer extends EventEmitter {
       // console.log(`Peer ${this.PEER_IP} refused connection`);
       // Don't retry, move to next peer
     } else if (nodeError.code === 'ENETUNREACH') {
+      // Network unreachable, peer is unavailable
+    } else if (nodeError.code === 'ECONNRESET') {
+      // Connection reset by peer, gracefully disconnect and move to next peer
+      // This commonly happens when resuming as peers may have closed connections during pause
     } else {
       console.warn(error)
     }
