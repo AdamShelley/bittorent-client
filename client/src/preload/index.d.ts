@@ -9,6 +9,7 @@ declare global {
       startDownload: (torrentPath: string) => Promise<void>
       pauseDownload: (torrentId: string) => Promise<void>
       resumeDownload: (torrentId: string) => Promise<void>
+      getTorrentList: () => Promise<any[]>
     }
   }
 }

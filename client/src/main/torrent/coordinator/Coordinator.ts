@@ -121,11 +121,35 @@ export class Coordinator {
   }
 
   getAnnounceStats(): { uploaded: number; downloaded: number; left: number } {
+    const completedBytes = this.pieceManager.getCompletedCount() * this.pieceLength
+    const lastPieceSize = this.totalFileSize % this.pieceLength || this.pieceLength
+
+    // For the last piece, use actual file size instead of piece length
+    let actualCompletedBytes = 0
+    if (this.pieceManager.getCompletedCount() > 0) {
+      const fullPieces = Math.min(this.pieceManager.getCompletedCount(), this.totalPieces - 1)
+      actualCompletedBytes = fullPieces * this.pieceLength
+
+      // Add last piece if it's completed
+      if (this.pieceManager.completedPieces.has(this.totalPieces - 1)) {
+        actualCompletedBytes += lastPieceSize
+      }
+    }
+
+    const left = Math.max(0, this.totalFileSize - actualCompletedBytes)
+
     return {
       uploaded: 0,
       downloaded: this.bytesDownloaded,
-      left: this.totalFileSize - this.pieceManager.getCompletedCount() * this.pieceLength
+      left
     }
+  }
+
+  getDownloadSpeed(): number {
+    if (this.downloadStartTime === 0) return 0
+    const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000
+    if (elapsedSeconds === 0) return 0
+    return this.bytesDownloaded / elapsedSeconds / (1024 * 1024) // Returns MB/s
   }
 
   detatchListeners(peer: Peer): void {

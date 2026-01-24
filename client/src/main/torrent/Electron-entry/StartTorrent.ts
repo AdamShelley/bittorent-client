@@ -11,6 +11,7 @@ export class StartTorrent {
   downloadLocation: string | null = null
   torrent: DecodedTorrent | null = null
   coordinator: Coordinator | null = null
+  private isPaused: boolean = false
 
   constructor(torrentPath: string, downloadLocation: string) {
     this.torrentPath = torrentPath
@@ -69,6 +70,9 @@ export class StartTorrent {
       )
       if (!peerList) throw new Error('Getting peer list failed')
 
+      // Store torrent info for later access
+      this.torrent = infoSection.decodedValue
+
       // Connect to peers, request pieces etc
       this.coordinator = connect(peerList, headerAssemblyResults, infoSection.decodedValue)
     } catch (e) {
@@ -76,11 +80,29 @@ export class StartTorrent {
     }
   }
 
+  getTorrentName(): string {
+    return this.torrent?.name.toString() ?? 'Unknown'
+  }
+
+  getStatus(): 'downloading' | 'paused' | 'idle' {
+    if (this.isPaused) return 'paused'
+    if (!this.coordinator) return 'idle'
+    return 'downloading'
+  }
+
+  getDownloadSpeed(): string {
+    if (this.isPaused) return '0.00'
+    const speedMBps = this.coordinator?.getDownloadSpeed() ?? 0
+    return speedMBps.toFixed(2)
+  }
+
   pause(): void {
+    this.isPaused = true
     this.coordinator?.pauseDownload()
   }
 
   async resumeTorrent(): Promise<void> {
+    this.isPaused = false
     await this.coordinator?.resumeDownload()
   }
 }

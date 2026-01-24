@@ -9,7 +9,10 @@ const api = {
   pauseDownload: (torrentId: string): Promise<void> =>
     ipcRenderer.invoke('pause-download', torrentId),
   resumeDownload: (torrentId: string): Promise<void> =>
-    ipcRenderer.invoke('resume-download', torrentId)
+    ipcRenderer.invoke('resume-download', torrentId),
+  deleteTorrent: (torrentId: string): Promise<void> =>
+    ipcRenderer.invoke('delete-torrent', torrentId),
+  getTorrentList: (): Promise<any[]> => ipcRenderer.invoke('list-torrents')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

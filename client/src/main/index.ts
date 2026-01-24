@@ -7,6 +7,7 @@ import { OpenFileResult } from '../types/types'
 import { downloadFile } from './torrent/cli/frontend'
 import { StartTorrent } from './torrent/Electron-entry/StartTorrent'
 import { registerTorrentIpc } from './ipc/torrent.ipc'
+import { torrentManager } from './torrent/Electron-entry/TorrentManager'
 
 function createWindow(): void {
   // Create the browser window.
@@ -44,7 +45,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -57,6 +58,9 @@ app.whenReady().then(() => {
 
   createWindow()
   registerTorrentIpc()
+
+  // Restore persisted torrents on app startup
+  await torrentManager.restorePersistedTorrents()
 
   ipcMain.handle('open-file', async (): Promise<OpenFileResult> => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -91,6 +95,12 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// Pause all torrents before quitting
+app.on('before-quit', () => {
+  console.log('App closing: pausing all active torrents...')
+  torrentManager.pauseAllTorrents()
 })
 
 // In this file you can include the rest of your app's specific main process
