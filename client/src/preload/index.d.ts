@@ -6,9 +6,10 @@ declare global {
     electron: ElectronAPI
     api: {
       openFileDialog: () => Promise<OpenFileResult>
-      startDownload: (torrentPath: string) => Promise<void>
+      startDownload: (torrentPath: string) => Promise<{ id: string }>
       pauseDownload: (torrentId: string) => Promise<void>
       resumeDownload: (torrentId: string) => Promise<void>
+      deleteTorrent: (torrentId: string) => Promise<void>
       getTorrentList: () => Promise<any[]>
     }
   }

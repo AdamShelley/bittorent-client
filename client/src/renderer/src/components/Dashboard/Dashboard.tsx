@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import { Toolbar } from './components/Toolbar'
+import { ResizableSidebar } from './components/ResizableSidebar'
+import { TorrentTable } from './components/Table'
 
 interface Torrent {
   id: string
@@ -8,57 +11,25 @@ interface Torrent {
   speed: string
 }
 
+type FilterType = 'all' | 'downloading' | 'seeding' | 'downloaded'
+
 const Dashboard = (): React.JSX.Element => {
   const [currentTorrentId, setCurrentTorrentId] = useState<string | null>(null)
   const [torrents, setTorrents] = useState<Torrent[]>([])
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all')
 
-  const showDialog = async (): Promise<void> => {
-    const result = await window.api.openFileDialog()
-
-    if (result.canceled) return
-    if (!result.filePath) return
-
-    console.log(result)
-    await startDownload(result.filePath)
-  }
-
-  const startDownload = async (torrentPath: string): Promise<void> => {
-    const download = await window.api.startDownload(torrentPath)
-    console.log(download)
-    setCurrentTorrentId(download.id)
-
-    await getTorrentList()
-  }
-
-  const pauseTorrent = async (torrentId: string): Promise<void> => {
-    console.log('Pausing')
-    await window.api.pauseDownload(torrentId)
-    await getTorrentList()
-  }
-
-  const resumeTorrent = async (torrentId: string): Promise<void> => {
-    console.log('Resuming')
-    await window.api.resumeDownload(torrentId)
-    await getTorrentList()
-  }
-
-  const deleteTorrent = async (torrentId: string): Promise<void> => {
-    console.log('Deleting')
-    await window.api.deleteTorrent(torrentId)
-    if (currentTorrentId === torrentId) {
-      setCurrentTorrentId(null)
-    }
-    await getTorrentList()
-  }
-
-  const getTorrentList = async () => {
+  const getTorrentList = async (): Promise<void> => {
     const torrentList = await window.api.getTorrentList()
     console.log('Torrent List:', torrentList)
     setTorrents(torrentList)
   }
 
   useEffect(() => {
-    getTorrentList()
+    const start = async (): Promise<void> => {
+      await getTorrentList()
+    }
+
+    start()
 
     // Auto-refresh torrent list every 2 seconds
     const interval = setInterval(() => {
@@ -68,38 +39,56 @@ const Dashboard = (): React.JSX.Element => {
     return () => clearInterval(interval)
   }, [])
 
+  // Calculate counts for each filter
+  const counts = useMemo(() => {
+    return {
+      downloading: torrents.filter((t) => t.status === 'downloading').length,
+      // Seeding: idle status with speed > 0 (completed and still active)
+      seeding: torrents.filter((t) => t.status === 'idle' && parseFloat(t.speed || '0') > 0).length,
+      // Downloaded: idle or paused (completed downloads)
+      downloaded: torrents.filter((t) => t.status === 'idle' || t.status === 'paused').length
+    }
+  }, [torrents])
+
+  // Filter torrents based on active filter
+  const filteredTorrents = useMemo(() => {
+    if (activeFilter === 'all') return torrents
+    if (activeFilter === 'downloading') {
+      return torrents.filter((t) => t.status === 'downloading')
+    }
+    if (activeFilter === 'seeding') {
+      // Seeding: idle status with speed > 0
+      return torrents.filter((t) => t.status === 'idle' && parseFloat(t.speed || '0') > 0)
+    }
+    if (activeFilter === 'downloaded') {
+      // Downloaded: idle or paused (completed)
+      return torrents.filter((t) => t.status === 'idle' || t.status === 'paused')
+    }
+    return torrents
+  }, [torrents, activeFilter])
+
   return (
-    <div className="flex flex-col gap-4">
-      {currentTorrentId}
-      <div className="flex gap-4">
-        <button onClick={showDialog}>Open Torrent</button>
-        <button onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}>
-          Pause Torrent
-        </button>
-        <button onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}>
-          Resume Torrent
-        </button>
-        <button
-          onClick={() => currentTorrentId && deleteTorrent(currentTorrentId)}
-          style={{ backgroundColor: '#dc2626', color: 'white' }}
-        >
-          Delete Torrent
-        </button>
-      </div>
-      <div>
-        <p>Torrent Info</p>
-        <ul>
-          {torrents &&
-            torrents.map((torrent) => (
-              <li
-                className="cursor-pointer"
-                onClick={() => setCurrentTorrentId(torrent.id)}
-                key={torrent.id}
-              >
-                <strong>{torrent.name}</strong> - {torrent.status} - {torrent.speed} MB/s
-              </li>
-            ))}
-        </ul>
+    <div className="flex h-full w-full">
+      <ResizableSidebar
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        counts={counts}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex items-center gap-2 border-b border-slate-200/10 p-2">
+          <Toolbar
+            currentTorrentId={currentTorrentId}
+            setCurrentTorrentId={setCurrentTorrentId}
+            getTorrentList={getTorrentList}
+          />
+        </div>
+        <div className="flex-1 overflow-auto p-4">
+          <TorrentTable
+            torrents={filteredTorrents}
+            currentTorrentId={currentTorrentId}
+            onTorrentClick={setCurrentTorrentId}
+          />
+        </div>
       </div>
     </div>
   )
