@@ -52,28 +52,28 @@ export const Toolbar = ({
   }
 
   return (
-    <div className="flex gap-5 items-center w-full p-2 text-slate-300 drag-region">
-      <button onClick={showDialog} className="no-drag">
-        <FolderOpen className="size-6 text-slate-300 hover:text-slate-400 cursor-pointer transition " />
+    <div className="flex gap-5 items-center w-full p-2 text-zinc-400/90 drag-region ">
+      <button onClick={showDialog} className="no-drag pl-2">
+        <FolderOpen className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition" />
       </button>
       <button
         onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}
         className="no-drag"
       >
-        <CirclePlay className="size-6 text-slate-300 hover:text-slate-400 cursor-pointer transition " />
+        <CirclePlay className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
       </button>
       <button
         onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}
         className="no-drag"
       >
-        <CirclePause className="size-6 text-slate-300 hover:text-slate-400 cursor-pointer transition " />
+        <CirclePause className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
       </button>
 
       <button
         onClick={() => currentTorrentId && deleteTorrent(currentTorrentId)}
         className="no-drag"
       >
-        <DeleteIcon className="size-6 text-slate-300 hover:text-slate-400 cursor-pointer transition " />
+        <DeleteIcon className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
       </button>
     </div>
   )

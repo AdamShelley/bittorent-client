@@ -75,14 +75,14 @@ const Dashboard = (): React.JSX.Element => {
         counts={counts}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-2 border-b border-slate-200/10 p-2">
+        <div className="flex items-center gap-2 border-b border-slate-200/10 ">
           <Toolbar
             currentTorrentId={currentTorrentId}
             setCurrentTorrentId={setCurrentTorrentId}
             getTorrentList={getTorrentList}
           />
         </div>
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto">
           <TorrentTable
             torrents={filteredTorrents}
             currentTorrentId={currentTorrentId}

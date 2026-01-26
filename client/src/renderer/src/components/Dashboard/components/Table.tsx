@@ -57,7 +57,7 @@ export const TorrentTable = ({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[40%]">Name</TableHead>
+          <TableHead className="w-[30%]">Name</TableHead>
           <TableHead className="w-[15%]">Status</TableHead>
           <TableHead className="w-[15%]">Speed</TableHead>
         </TableRow>
@@ -69,7 +69,7 @@ export const TorrentTable = ({
             onClick={() => onTorrentClick(torrent.id)}
             className={cn(
               'cursor-pointer transition-colors',
-              currentTorrentId === torrent.id && 'bg-amber-950'
+              currentTorrentId === torrent.id && 'bg-amber-950/50 '
             )}
           >
             <TableCell className="font-medium">{torrent.name || 'Unknown'}</TableCell>

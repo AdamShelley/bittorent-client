@@ -22,7 +22,7 @@ body {
   background-color: transparent !important;
   user-select: none;
   /* Add padding for macOS traffic lights (28px) or Windows/Linux title bar */
-  padding-top: 28px;
+  padding-top: 10px;
   position: relative;
 }
 

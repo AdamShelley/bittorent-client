@@ -93,10 +93,8 @@ export const ResizableSidebar = ({
       style={{ width: `${width}px` }}
     >
       <div className="h-full overflow-y-auto p-4">
-        <h2 className="text-sm font-semibold mb-4 text-foreground">Filters</h2>
         <div className="space-y-1">
           {filters.map((filter) => {
-            const Icon = filter.icon
             return (
               <button
                 key={filter.id}
@@ -108,7 +106,6 @@ export const ResizableSidebar = ({
                     : 'text-foreground hover:bg-accent/50'
                 )}
               >
-                {Icon && <Icon className="size-4" />}
                 <span className="flex-1 text-left">{filter.label}</span>
                 {filter.count !== undefined && filter.count > 0 && (
                   <span className="text-xs text-muted-foreground">{filter.count}</span>
