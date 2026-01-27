@@ -3,15 +3,16 @@ import { Toolbar } from './components/Toolbar'
 import { ResizableSidebar } from './components/ResizableSidebar'
 import { TorrentTable } from './components/Table'
 
-interface Torrent {
+export interface Torrent {
   id: string
   path: string | null
   name: string
   status: string | null
   speed: string
+  percent: number
 }
 
-type FilterType = 'all' | 'downloading' | 'seeding' | 'downloaded'
+type FilterType = 'all' | 'downloading' | 'seeding' | 'downloaded' 
 
 const Dashboard = (): React.JSX.Element => {
   const [currentTorrentId, setCurrentTorrentId] = useState<string | null>(null)

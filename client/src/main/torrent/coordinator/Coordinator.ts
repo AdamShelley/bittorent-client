@@ -152,6 +152,11 @@ export class Coordinator {
     return this.bytesDownloaded / elapsedSeconds / (1024 * 1024) // Returns MB/s
   }
 
+  getTorrentPercent(): number {
+    const progress = (this.pieceManager.getCompletedCount() / this.totalPieces) * 100
+    return progress
+  }
+
   detatchListeners(peer: Peer): void {
     console.log('Pausing:', peer)
     peer.pause()

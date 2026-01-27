@@ -14,6 +14,7 @@ interface Torrent {
   name: string
   status: string | null
   speed: string
+  percent: number
 }
 
 interface TorrentTableProps {
@@ -59,6 +60,7 @@ export const TorrentTable = ({
         <TableRow>
           <TableHead className="w-[30%]">Name</TableHead>
           <TableHead className="w-[15%]">Status</TableHead>
+          <TableHead className="w-[15%]">% Complete</TableHead>
           <TableHead className="w-[15%]">Speed</TableHead>
         </TableRow>
       </TableHeader>
@@ -78,6 +80,7 @@ export const TorrentTable = ({
                 {formatStatus(torrent.status)}
               </span>
             </TableCell>
+            <TableCell>{torrent.percent ? `${torrent.percent.toFixed(2)} %` : '0.00 %'}</TableCell>
             <TableCell>{torrent.speed ? `${torrent.speed} MB/s` : '0.00 MB/s'}</TableCell>
           </TableRow>
         ))}

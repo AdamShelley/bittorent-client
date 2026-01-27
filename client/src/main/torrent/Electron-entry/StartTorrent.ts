@@ -96,6 +96,12 @@ export class StartTorrent {
     return speedMBps.toFixed(2)
   }
 
+  getTorrentPercent(): number {
+    if (!this.isPaused) return 0
+    const percent = this.coordinator?.getTorrentPercent() ?? 0
+    return percent
+  }
+
   pause(): void {
     this.isPaused = true
     this.coordinator?.pauseDownload()

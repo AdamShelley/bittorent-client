@@ -1,4 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import { Torrent } from '@renderer/components/Dashboard/Dashboard'
 import { OpenFileResult } from 'src/types/types'
 
 declare global {
@@ -10,7 +11,7 @@ declare global {
       pauseDownload: (torrentId: string) => Promise<void>
       resumeDownload: (torrentId: string) => Promise<void>
       deleteTorrent: (torrentId: string) => Promise<void>
-      getTorrentList: () => Promise<any[]>
+      getTorrentList: () => Promise<Torrent[]>
     }
   }
 }

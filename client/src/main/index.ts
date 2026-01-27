@@ -4,8 +4,6 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { OpenFileResult } from '../types/types'
-import { downloadFile } from './torrent/cli/frontend'
-import { StartTorrent } from './torrent/Electron-entry/StartTorrent'
 import { registerTorrentIpc } from './ipc/torrent.ipc'
 import { torrentManager } from './torrent/Electron-entry/TorrentManager'
 
