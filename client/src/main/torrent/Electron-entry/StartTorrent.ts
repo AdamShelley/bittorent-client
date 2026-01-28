@@ -22,32 +22,28 @@ export class StartTorrent {
     try {
       console.log('STARTING DOWNLOAD')
       if (!this.torrentPath) {
-        console.error(
-          'Error: No torrent file path provided.\nUsage: node cli.js <torrent-file-path>'
-        )
-        process.exit(1)
+        throw new Error('No torrent file path provided.')
       }
 
       console.log('Torrent Path:', this.torrentPath)
 
       if (!fs.existsSync(this.torrentPath)) {
-        console.error(`Error: File not found at path "${this.torrentPath}".`)
-        process.exit(1)
+        throw new Error(`File not found at path "${this.torrentPath}".`)
       }
 
       let buffer: Buffer
       try {
         buffer = fs.readFileSync(this.torrentPath)
       } catch (err) {
-        console.error(
-          `Error: Failed to read file "${this.torrentPath}".\n${(err as Error).message}`
-        )
-        process.exit(1)
+        throw new Error(`Failed to read file "${this.torrentPath}".\n${(err as Error).message}`)
       }
 
       // DECODE FILE
       const searchString = '4:info'
       const position = buffer.indexOf(searchString)
+      if (position === -1) {
+        throw new Error('Invalid torrent file: could not find info section')
+      }
       const infoStart = position + searchString.length
       const decoded = decode(buffer, 0)
       const infoSection = decode(buffer, infoStart)
@@ -76,7 +72,8 @@ export class StartTorrent {
       // Connect to peers, request pieces etc
       this.coordinator = connect(peerList, headerAssemblyResults, infoSection.decodedValue)
     } catch (e) {
-      console.warn(e)
+      console.error(`Error starting torrent: ${(e as Error).message}`)
+      throw e
     }
   }
 

@@ -1,5 +1,6 @@
-import { CirclePause, CirclePlay, DeleteIcon, FolderOpen } from 'lucide-react'
-import { Dispatch, JSX, SetStateAction } from 'react'
+import { CirclePause, CirclePlay, DeleteIcon, FolderOpen, Settings } from 'lucide-react'
+import { Dispatch, JSX, SetStateAction, useState } from 'react'
+import { SettingsModal } from '../../Settings/SettingsModal'
 
 interface ToolbarProps {
   currentTorrentId: string | null
@@ -12,6 +13,8 @@ export const Toolbar = ({
   setCurrentTorrentId,
   getTorrentList
 }: ToolbarProps): JSX.Element => {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
   const showDialog = async (): Promise<void> => {
     const result = await window.api.openFileDialog()
 
@@ -51,30 +54,40 @@ export const Toolbar = ({
     await getTorrentList()
   }
 
-  return (
-    <div className="flex gap-5 items-center w-full p-2 text-zinc-400/90 drag-region ">
-      <button onClick={showDialog} className="no-drag pl-2">
-        <FolderOpen className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition" />
-      </button>
-      <button
-        onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}
-        className="no-drag"
-      >
-        <CirclePlay className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-      </button>
-      <button
-        onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}
-        className="no-drag"
-      >
-        <CirclePause className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-      </button>
+  const openSettings = (): void => {
+    setIsSettingsOpen(true)
+  }
 
-      <button
-        onClick={() => currentTorrentId && deleteTorrent(currentTorrentId)}
-        className="no-drag"
-      >
-        <DeleteIcon className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-      </button>
-    </div>
+  return (
+    <>
+      <div className="flex gap-5 items-center w-full p-2 text-zinc-400/90 drag-region ">
+        <button onClick={showDialog} className="no-drag pl-2">
+          <FolderOpen className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition" />
+        </button>
+        <button
+          onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}
+          className="no-drag"
+        >
+          <CirclePlay className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
+        </button>
+        <button
+          onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}
+          className="no-drag"
+        >
+          <CirclePause className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
+        </button>
+
+        <button
+          onClick={() => currentTorrentId && deleteTorrent(currentTorrentId)}
+          className="no-drag"
+        >
+          <DeleteIcon className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
+        </button>
+        <button onClick={openSettings} className="no-drag">
+          <Settings className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
+        </button>
+      </div>
+      <SettingsModal isOpen={isSettingsOpen} setIsOpen={setIsSettingsOpen} />
+    </>
   )
 }

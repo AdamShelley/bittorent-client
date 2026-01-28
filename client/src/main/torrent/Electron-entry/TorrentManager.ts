@@ -91,6 +91,8 @@ class TorrentManager {
         }
       } catch (err) {
         console.error(`Failed to restore torrent ${savedTorrent.id}:`, err)
+        // Remove the torrent from persistence if it fails to restore
+        torrentStateManager.removeTorrent(savedTorrent.id)
       }
     }
   }
