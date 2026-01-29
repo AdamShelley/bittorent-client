@@ -87,6 +87,7 @@ export const Toolbar = ({
           <Settings className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
         </button>
       </div>
+      
       <SettingsModal isOpen={isSettingsOpen} setIsOpen={setIsSettingsOpen} />
     </>
   )

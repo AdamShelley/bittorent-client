@@ -10,7 +10,7 @@ interface SettingsModalProps {
 export const SettingsModal = ({ isOpen, setIsOpen }: SettingsModalProps): JSX.Element => {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent>
+      <DialogContent className="bg-slate-900/40 ring-slate-800/50">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
