@@ -5,6 +5,8 @@ import { OpenFileResult } from '../types/types'
 // Custom APIs for renderer
 const api = {
   openFileDialog: (): Promise<OpenFileResult> => ipcRenderer.invoke('open-file'),
+  openDirectoryDialog: (): Promise<{ canceled: boolean; path?: string }> =>
+    ipcRenderer.invoke('open-directory'),
   startDownload: (torrentPath: string) => ipcRenderer.invoke('start-download', torrentPath),
   pauseDownload: (torrentId: string): Promise<void> =>
     ipcRenderer.invoke('pause-download', torrentId),

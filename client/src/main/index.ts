@@ -85,6 +85,18 @@ app.whenReady().then(async () => {
     }
   })
 
+  ipcMain.handle('open-directory', async (): Promise<{ canceled: boolean; path?: string }> => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return { canceled: true }
+    }
+
+    return { canceled: false, path: filePaths[0] }
+  })
+
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.

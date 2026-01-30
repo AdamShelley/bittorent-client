@@ -1,5 +1,11 @@
 import { Dispatch, JSX, SetStateAction } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@renderer/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@renderer/components/ui/dialog'
 import { Settings as SettingsComponent } from '@renderer/components/Settings/Settings'
 
 interface SettingsModalProps {
@@ -17,6 +23,9 @@ export const SettingsModal = ({ isOpen, setIsOpen }: SettingsModalProps): JSX.El
         <div className="mt-6">
           <SettingsComponent />
         </div>
+        <DialogFooter>
+          <div>Footer</div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

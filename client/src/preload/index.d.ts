@@ -12,6 +12,7 @@ declare global {
       resumeDownload: (torrentId: string) => Promise<void>
       deleteTorrent: (torrentId: string) => Promise<void>
       getTorrentList: () => Promise<Torrent[]>
+      openDirectoryDialog: () => Promise<{ canceled: boolean; path?: string }>
     }
   }
 }
