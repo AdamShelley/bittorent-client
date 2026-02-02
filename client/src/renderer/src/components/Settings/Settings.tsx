@@ -1,15 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Input } from '../ui/input'
 
 export const Settings = () => {
-  const defaultSettings: { [key: string]: string } = {
-    saveLocation: '/downloads'
-  }
+  const [saveLocation, setSaveLocation] = useState('/downloads')
 
-  const [saveLocation, setSaveLocation] = useState(defaultSettings.saveLocation)
+  useEffect(() => {
+    window.api.getSettings().then((settings) => {
+      if (settings?.saveLocation) {
+        setSaveLocation(settings.saveLocation)
+      }
+    })
+  }, [])
 
-  const saveSettings = (): void => {
-    console.log('Saving settings to file')
+  const saveSettings = (location: string): void => {
+    window.api.saveSettings({ saveLocation: location })
   }
 
   const handleBrowse = async () => {
@@ -17,7 +21,7 @@ export const Settings = () => {
       const result = await window.api.openDirectoryDialog()
       if (!result.canceled && result.path) {
         setSaveLocation(result.path)
-        saveSettings()
+        saveSettings(result.path)
       }
     } catch (error) {
       console.error('Failed to open directory dialog:', error)
@@ -31,7 +35,7 @@ export const Settings = () => {
           <h5>Save Location</h5>
           <div className="flex gap-2">
             <Input
-              className="border-slate-300/50 rounded-sm flex-1"
+              className="border-slate-300/50 rounded-sm flex-1 active:soutline-0"
               value={saveLocation}
               readOnly
             />

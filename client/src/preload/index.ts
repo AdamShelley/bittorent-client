@@ -14,7 +14,9 @@ const api = {
     ipcRenderer.invoke('resume-download', torrentId),
   deleteTorrent: (torrentId: string): Promise<void> =>
     ipcRenderer.invoke('delete-torrent', torrentId),
-  getTorrentList: (): Promise<any[]> => ipcRenderer.invoke('list-torrents')
+  getTorrentList: (): Promise<any[]> => ipcRenderer.invoke('list-torrents'),
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (settings: Record<string, unknown>) => ipcRenderer.invoke('save-settings', settings)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

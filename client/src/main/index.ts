@@ -6,6 +6,7 @@ import icon from '../../resources/icon.png?asset'
 import { OpenFileResult } from '../types/types'
 import { registerTorrentIpc } from './ipc/torrent.ipc'
 import { torrentManager } from './torrent/Electron-entry/TorrentManager'
+import { store, Settings } from './store/Store'
 
 function createWindow(): void {
   // Create the browser window.
@@ -83,6 +84,17 @@ app.whenReady().then(async () => {
     } catch (err) {
       return { canceled: false, filePath, content: `Error reading file: ${err}` }
     }
+  })
+
+  ipcMain.handle('get-settings', () => {
+    return store.getAll()
+  })
+
+  ipcMain.handle('save-settings', (_event, settings: Partial<Settings>) => {
+    for (const [key, value] of Object.entries(settings)) {
+      store.set(key as keyof Settings, value as Settings[keyof Settings])
+    }
+    return store.getAll()
   })
 
   ipcMain.handle('open-directory', async (): Promise<{ canceled: boolean; path?: string }> => {

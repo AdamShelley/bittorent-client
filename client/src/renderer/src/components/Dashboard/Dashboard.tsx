@@ -10,9 +10,11 @@ export interface Torrent {
   status: string | null
   speed: string
   percent: number
+  downloaded: number
+  totalSize: number
 }
 
-type FilterType = 'all' | 'downloading' | 'seeding' | 'downloaded' 
+type FilterType = 'all' | 'downloading' | 'seeding' | 'downloaded'
 
 const Dashboard = (): React.JSX.Element => {
   const [currentTorrentId, setCurrentTorrentId] = useState<string | null>(null)

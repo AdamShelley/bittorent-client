@@ -94,9 +94,16 @@ export class StartTorrent {
   }
 
   getTorrentPercent(): number {
-    if (!this.isPaused) return 0
     const percent = this.coordinator?.getTorrentPercent() ?? 0
     return percent
+  }
+
+  getBytesDownloaded(): number {
+    return this.coordinator?.getBytesDownloaded() ?? 0
+  }
+
+  getTotalFileSize(): number {
+    return this.coordinator?.getTotalFileSize() ?? 0
   }
 
   pause(): void {

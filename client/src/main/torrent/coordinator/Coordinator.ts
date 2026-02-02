@@ -36,7 +36,25 @@ export class Coordinator {
     this.peerList = peerList
     this.headers = headerAssemblyResults
     this.torrent = torrentInfo
-    this.totalFileSize = torrentInfo.length
+    // Handle both single-file and multi-file torrents
+    if (torrentInfo.length) {
+      this.totalFileSize = torrentInfo.length
+    } else if (torrentInfo.files) {
+      this.totalFileSize = torrentInfo.files.reduce(
+        (sum: number, file: { length: number }) => sum + file.length,
+        0
+      )
+    } else {
+      this.totalFileSize = 0
+    }
+    console.log(
+      'Total file size calculated:',
+      this.totalFileSize,
+      'Single file length:',
+      torrentInfo.length,
+      'Has files array:',
+      !!torrentInfo.files
+    )
     this.pieceLength = torrentInfo['piece length']
     this.totalPieces = torrentInfo.pieces.length / 20
 
@@ -155,6 +173,31 @@ export class Coordinator {
   getTorrentPercent(): number {
     const progress = (this.pieceManager.getCompletedCount() / this.totalPieces) * 100
     return progress
+  }
+
+  getBytesDownloaded(): number {
+    // Calculate from completed pieces to persist across restarts
+    const completedCount = this.pieceManager.getCompletedCount()
+    if (completedCount === 0) return 0
+
+    // All pieces except the last one are full-sized
+    const lastPieceIndex = this.totalPieces - 1
+    const lastPieceSize = this.totalFileSize % this.pieceLength || this.pieceLength
+
+    // Check if last piece is completed
+    const hasLastPiece = this.pieceManager.completedPieces.has(lastPieceIndex)
+    const fullPieces = hasLastPiece ? completedCount - 1 : completedCount
+
+    let downloadedBytes = fullPieces * this.pieceLength
+    if (hasLastPiece) {
+      downloadedBytes += lastPieceSize
+    }
+
+    return downloadedBytes
+  }
+
+  getTotalFileSize(): number {
+    return this.totalFileSize
   }
 
   detatchListeners(peer: Peer): void {

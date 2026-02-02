@@ -40,6 +40,8 @@ class TorrentManager {
     status: string | null
     speed: string
     percent: number
+    downloaded: number
+    totalSize: number
   }[] {
     const result = [...this.torrents.entries()].map(([id, torrent]) => ({
       id,
@@ -47,7 +49,9 @@ class TorrentManager {
       name: torrent.getTorrentName(),
       status: torrent.getStatus(),
       speed: torrent.getDownloadSpeed(),
-      percent: torrent.getTorrentPercent()
+      percent: torrent.getTorrentPercent(),
+      downloaded: torrent.getBytesDownloaded(),
+      totalSize: torrent.getTotalFileSize()
     }))
 
     console.log('Listing torrents:', result)

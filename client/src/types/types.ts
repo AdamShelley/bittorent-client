@@ -5,8 +5,9 @@ export type OpenFileResult = {
 }
 
 export type DecodedTorrent = {
-  length: number
+  length?: number
   name: Buffer
   'piece length': number
   pieces: Buffer
+  files?: { length: number; path: Buffer[] }[]
 }
