@@ -1,19 +1,24 @@
 import { CirclePause, CirclePlay, DeleteIcon, FolderOpen, Settings } from 'lucide-react'
 import { Dispatch, JSX, SetStateAction, useState } from 'react'
+import { toast } from 'sonner'
 import { SettingsModal } from '../../Settings/SettingsModal'
+import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 
 interface ToolbarProps {
   currentTorrentId: string | null
+  currentTorrentName: string | null
   setCurrentTorrentId: Dispatch<SetStateAction<string | null>>
   getTorrentList: () => Promise<void>
 }
 
 export const Toolbar = ({
   currentTorrentId,
+  currentTorrentName,
   setCurrentTorrentId,
   getTorrentList
 }: ToolbarProps): JSX.Element => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   const showDialog = async (): Promise<void> => {
     const result = await window.api.openFileDialog()
@@ -29,7 +34,9 @@ export const Toolbar = ({
     const download = await window.api.startDownload(torrentPath)
     console.log(download)
     setCurrentTorrentId(download.id)
-
+    toast.success('Torrent added', {
+      description: download.name
+    })
     await getTorrentList()
   }
 
@@ -45,13 +52,23 @@ export const Toolbar = ({
     await getTorrentList()
   }
 
-  const deleteTorrent = async (torrentId: string): Promise<void> => {
-    console.log('Deleting')
-    await window.api.deleteTorrent(torrentId)
+  const deleteTorrent = async (torrentId: string, deleteData: boolean = false): Promise<void> => {
+    console.log('Deleting', deleteData ? 'with data' : 'from list only')
+    const torrentName = currentTorrentName
+    await window.api.deleteTorrent(torrentId, deleteData)
     if (currentTorrentId === torrentId) {
       setCurrentTorrentId(null)
     }
+    toast.success(deleteData ? 'Torrent and data deleted' : 'Torrent removed', {
+      description: torrentName ?? undefined
+    })
     await getTorrentList()
+  }
+
+  const handleDeleteClick = (): void => {
+    if (currentTorrentId) {
+      setIsDeleteDialogOpen(true)
+    }
   }
 
   const openSettings = (): void => {
@@ -78,7 +95,7 @@ export const Toolbar = ({
         </button>
 
         <button
-          onClick={() => currentTorrentId && deleteTorrent(currentTorrentId)}
+          onClick={handleDeleteClick}
           className="no-drag"
         >
           <DeleteIcon className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
@@ -89,6 +106,14 @@ export const Toolbar = ({
       </div>
       
       <SettingsModal isOpen={isSettingsOpen} setIsOpen={setIsSettingsOpen} />
+      
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onDeleteFromList={() => currentTorrentId && deleteTorrent(currentTorrentId, false)}
+        onDeleteWithData={() => currentTorrentId && deleteTorrent(currentTorrentId, true)}
+        torrentName={currentTorrentName ?? undefined}
+      />
     </>
   )
 }

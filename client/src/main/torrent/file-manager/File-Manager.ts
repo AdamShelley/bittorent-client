@@ -8,6 +8,7 @@ interface TorrentFile {
 }
 export class FileManager {
   private torrentInfo: any;
+  private downloadLocation: string;
   private outputFile: number | null = null;
   private outputFolder: string | null = null;
   private outputPath: string = "";
@@ -25,8 +26,9 @@ export class FileManager {
     offset: number;
   }> = [];
 
-  constructor(torrentInfo: any) {
+  constructor(torrentInfo: any, downloadLocation: string) {
     this.torrentInfo = torrentInfo;
+    this.downloadLocation = downloadLocation;
 
     if (this.torrentInfo.files) {
       this.setupMultiFile();
@@ -37,7 +39,7 @@ export class FileManager {
 
   setupMultiFile = () => {
     const rootFolder = this.torrentInfo.name.toString();
-    const baseDir = path.join(process.cwd(), "downloaded", rootFolder);
+    const baseDir = path.join(this.downloadLocation, rootFolder);
     this.outputFolder = baseDir;
     let runningOffset = 0;
 
@@ -76,7 +78,7 @@ export class FileManager {
       lastDotIndex > 0 ? fullFileName.substring(0, lastDotIndex) : fullFileName;
 
     // Create download folder structure
-    this.outputFolder = path.join(process.cwd(), "downloaded", folderName);
+    this.outputFolder = path.join(this.downloadLocation, folderName);
     fs.mkdirSync(this.outputFolder, { recursive: true });
 
     // File path
@@ -231,5 +233,9 @@ export class FileManager {
 
   getResumeFilePath() {
     return this.resumeFilePath ?? null;
+  }
+
+  getDownloadLocation() {
+    return this.downloadLocation;
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { toast } from 'sonner'
 import { Toolbar } from './components/Toolbar'
 import { ResizableSidebar } from './components/ResizableSidebar'
 import { TorrentTable } from './components/Table'
@@ -39,7 +40,18 @@ const Dashboard = (): React.JSX.Element => {
       getTorrentList()
     }, 2000)
 
-    return () => clearInterval(interval)
+    // Listen for torrent completion events
+    const unsubscribe = window.api.onTorrentCompleted((data) => {
+      toast.success('Download complete!', {
+        description: data.name
+      })
+      getTorrentList()
+    })
+
+    return () => {
+      clearInterval(interval)
+      unsubscribe()
+    }
   }, [])
 
   // Calculate counts for each filter
@@ -70,6 +82,13 @@ const Dashboard = (): React.JSX.Element => {
     return torrents
   }, [torrents, activeFilter])
 
+  // Get current torrent name for delete dialog
+  const currentTorrentName = useMemo(() => {
+    if (!currentTorrentId) return null
+    const torrent = torrents.find((t) => t.id === currentTorrentId)
+    return torrent?.name ?? null
+  }, [currentTorrentId, torrents])
+
   return (
     <div className="flex h-full w-full">
       <ResizableSidebar
@@ -81,6 +100,7 @@ const Dashboard = (): React.JSX.Element => {
         <div className="flex items-center gap-2 border-b border-slate-200/10 ">
           <Toolbar
             currentTorrentId={currentTorrentId}
+            currentTorrentName={currentTorrentName}
             setCurrentTorrentId={setCurrentTorrentId}
             getTorrentList={getTorrentList}
           />

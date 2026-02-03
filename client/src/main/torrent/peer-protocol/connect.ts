@@ -6,7 +6,8 @@ import { DecodedTorrent } from '../../../types/types'
 export const connect = (
   peerList: PeerReturnType[],
   headerAssemblyResults: HeaderReturnType,
-  decodedInfoSection: DecodedTorrent
+  decodedInfoSection: DecodedTorrent,
+  downloadLocation: string
 ): Coordinator => {
-  return new Coordinator(peerList, headerAssemblyResults, decodedInfoSection)
+  return new Coordinator(peerList, headerAssemblyResults, decodedInfoSection, downloadLocation)
 }

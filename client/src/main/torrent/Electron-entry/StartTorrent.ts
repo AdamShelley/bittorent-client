@@ -70,7 +70,7 @@ export class StartTorrent {
       this.torrent = infoSection.decodedValue
 
       // Connect to peers, request pieces etc
-      this.coordinator = connect(peerList, headerAssemblyResults, infoSection.decodedValue)
+      this.coordinator = connect(peerList, headerAssemblyResults, infoSection.decodedValue, this.downloadLocation!)
     } catch (e) {
       console.error(`Error starting torrent: ${(e as Error).message}`)
       throw e
@@ -104,6 +104,14 @@ export class StartTorrent {
 
   getTotalFileSize(): number {
     return this.coordinator?.getTotalFileSize() ?? 0
+  }
+
+  getOutputFolder(): string | null {
+    return this.coordinator?.getOutputFolder() ?? null
+  }
+
+  onComplete(callback: (name: string) => void): void {
+    this.coordinator?.onComplete(callback)
   }
 
   pause(): void {

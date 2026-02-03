@@ -27,15 +27,20 @@ export class Coordinator {
   isPaused = false
   private unchokeTimer?: NodeJS.Timeout
   private trackerTimer?: NodeJS.Timeout
+  private onCompleteCallback?: (name: string) => void
+
+  private downloadLocation: string
 
   constructor(
     peerList: PeerReturnType[],
     headerAssemblyResults: HeaderReturnType,
-    torrentInfo: DecodedTorrent
+    torrentInfo: DecodedTorrent,
+    downloadLocation: string
   ) {
     this.peerList = peerList
     this.headers = headerAssemblyResults
     this.torrent = torrentInfo
+    this.downloadLocation = downloadLocation
     // Handle both single-file and multi-file torrents
     if (torrentInfo.length) {
       this.totalFileSize = torrentInfo.length
@@ -67,7 +72,7 @@ export class Coordinator {
       this.torrent.pieces
     )
 
-    this.fileManager = new FileManager(torrentInfo)
+    this.fileManager = new FileManager(torrentInfo, this.downloadLocation)
 
     const completed = this.fileManager.getResumeJsonFile()
 
@@ -200,6 +205,14 @@ export class Coordinator {
     return this.totalFileSize
   }
 
+  getOutputFolder(): string | null {
+    return this.fileManager.getOutputFolder()
+  }
+
+  onComplete(callback: (name: string) => void): void {
+    this.onCompleteCallback = callback
+  }
+
   detatchListeners(peer: Peer): void {
     console.log('Pausing:', peer)
     peer.pause()
@@ -315,7 +328,12 @@ export class Coordinator {
         this.fileManager.writeToResume(this.pieceManager.getCompletedPieces(), true)
         this.fileManager.closeFile()
         console.log('*** Download complete!', this.fileManager.getOutputPath())
-        process.exit(0)
+        
+        // Notify completion
+        if (this.onCompleteCallback) {
+          const torrentName = this.torrent.name.toString()
+          this.onCompleteCallback(torrentName)
+        }
         return
       }
 

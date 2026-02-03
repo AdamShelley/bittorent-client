@@ -12,11 +12,16 @@ const api = {
     ipcRenderer.invoke('pause-download', torrentId),
   resumeDownload: (torrentId: string): Promise<void> =>
     ipcRenderer.invoke('resume-download', torrentId),
-  deleteTorrent: (torrentId: string): Promise<void> =>
-    ipcRenderer.invoke('delete-torrent', torrentId),
+  deleteTorrent: (torrentId: string, deleteData?: boolean): Promise<void> =>
+    ipcRenderer.invoke('delete-torrent', torrentId, deleteData ?? false),
   getTorrentList: (): Promise<any[]> => ipcRenderer.invoke('list-torrents'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
-  saveSettings: (settings: Record<string, unknown>) => ipcRenderer.invoke('save-settings', settings)
+  saveSettings: (settings: Record<string, unknown>) => ipcRenderer.invoke('save-settings', settings),
+  onTorrentCompleted: (callback: (data: { id: string; name: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { id: string; name: string }) => callback(data)
+    ipcRenderer.on('torrent-completed', handler)
+    return () => ipcRenderer.removeListener('torrent-completed', handler)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
