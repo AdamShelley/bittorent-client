@@ -233,16 +233,16 @@ export class Coordinator {
     if (elapsed >= 1000) {
       const bytesDiff = this.bytesDownloaded - this.bytesAtLastCheck
       const instantSpeed = ((bytesDiff / elapsed) * 1000) / (1024 * 1024) // MB/s
-      
+
       // Add to rolling samples
       this.speedSamples.push(instantSpeed)
       if (this.speedSamples.length > this.SPEED_SAMPLE_COUNT) {
         this.speedSamples.shift()
       }
-      
+
       // Calculate average of samples
       this.currentSpeed = this.speedSamples.reduce((a, b) => a + b, 0) / this.speedSamples.length
-      
+
       this.lastSpeedCheck = now
       this.bytesAtLastCheck = this.bytesDownloaded
     } else if (elapsed > 3000 && this.currentSpeed > 0) {
@@ -455,14 +455,14 @@ export class Coordinator {
   triggerEndgameRequests = (): void => {
     // Get all unchoked peers
     const unchokedPeers = this.peers.filter((p) => !p.peerChoking && p.handshakeDone)
-    
+
     // Get remaining pieces needed
     const piecesNeeded = Array.from(this.pieceManager.piecesNeeded)
-    
+
     // Request each remaining piece from every peer that has it
     for (const pieceIndex of piecesNeeded) {
       const blocks = this.pieceManager.getPieceBlocks(pieceIndex)
-      
+
       for (const peer of unchokedPeers) {
         if (peer.hasPiece(pieceIndex)) {
           blocks?.forEach((block) => {
