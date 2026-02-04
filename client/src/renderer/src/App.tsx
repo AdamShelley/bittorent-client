@@ -9,15 +9,15 @@ function App(): React.JSX.Element {
       <div className="flex-1 pt-7">
         <Dashboard />
       </div>
-      <Toaster 
-        position="bottom-right" 
+      <Toaster
+        position="bottom-right"
         theme="dark"
         toastOptions={{
           style: {
             background: 'rgba(30, 41, 59, 0.95)',
             border: '1px solid rgba(71, 85, 105, 0.5)',
-            color: '#e2e8f0',
-          },
+            color: '#e2e8f0'
+          }
         }}
       />
     </div>

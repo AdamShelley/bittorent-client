@@ -9,13 +9,15 @@ import { Coordinator } from '../coordinator/Coordinator'
 export class StartTorrent {
   torrentPath: string | null = null
   downloadLocation: string | null = null
+  customFolderName: string | null = null
   torrent: DecodedTorrent | null = null
   coordinator: Coordinator | null = null
   private isPaused: boolean = false
 
-  constructor(torrentPath: string, downloadLocation: string) {
+  constructor(torrentPath: string, downloadLocation: string, customFolderName?: string) {
     this.torrentPath = torrentPath
     this.downloadLocation = downloadLocation
+    this.customFolderName = customFolderName ?? null
   }
 
   async start(): Promise<void> {
@@ -70,7 +72,13 @@ export class StartTorrent {
       this.torrent = infoSection.decodedValue
 
       // Connect to peers, request pieces etc
-      this.coordinator = connect(peerList, headerAssemblyResults, infoSection.decodedValue, this.downloadLocation!)
+      this.coordinator = connect(
+        peerList,
+        headerAssemblyResults,
+        infoSection.decodedValue,
+        this.downloadLocation!,
+        this.customFolderName ?? undefined
+      )
     } catch (e) {
       console.error(`Error starting torrent: ${(e as Error).message}`)
       throw e

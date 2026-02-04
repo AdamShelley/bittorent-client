@@ -20,10 +20,10 @@ html,
 body {
   overflow: hidden;
   background: linear-gradient(
-    135deg,
-    rgba(26, 26, 46, 0.05) 0%,
-    rgba(45, 27, 78, 0.45) 50%,
-    rgba(74, 25, 66, 0.55) 100%
+    180deg,
+    rgba(10, 10, 12, 0.6) 0%,
+    rgba(10, 10, 12, 0.5) 40%,
+    rgba(12, 12, 14, 0.45) 100%
   );
   user-select: none;
   position: relative;

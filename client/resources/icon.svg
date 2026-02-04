@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a1f"/>
+      <stop offset="100%" style="stop-color:#0a0a0c"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#818cf8"/>
+      <stop offset="100%" style="stop-color:#a78bfa"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background rounded square -->
+  <rect x="32" y="32" width="960" height="960" rx="220" ry="220" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle inner border -->
+  <rect x="48" y="48" width="928" height="928" rx="204" ry="204" fill="none" stroke="#27272a" stroke-width="2"/>
+  
+  <!-- Central download arrow -->
+  <g transform="translate(512, 480)">
+    <!-- Arrow shaft -->
+    <rect x="-60" y="-180" width="120" height="260" rx="20" fill="url(#accentGrad)"/>
+    
+    <!-- Arrow head (triangle pointing down) -->
+    <polygon points="-140,80 0,220 140,80" fill="url(#accentGrad)"/>
+  </g>
+  
+  <!-- Bottom platform/tray -->
+  <rect x="272" y="680" width="480" height="60" rx="30" fill="url(#glowGrad)" opacity="0.9"/>
+  
+  <!-- Decorative dots representing peers/network -->
+  <circle cx="220" cy="300" r="24" fill="#6366f1" opacity="0.6"/>
+  <circle cx="180" cy="420" r="16" fill="#8b5cf6" opacity="0.4"/>
+  <circle cx="804" cy="340" r="20" fill="#6366f1" opacity="0.5"/>
+  <circle cx="840" cy="460" r="14" fill="#8b5cf6" opacity="0.35"/>
+  <circle cx="260" cy="560" r="12" fill="#a78bfa" opacity="0.3"/>
+  <circle cx="764" cy="580" r="18" fill="#818cf8" opacity="0.4"/>
+</svg>

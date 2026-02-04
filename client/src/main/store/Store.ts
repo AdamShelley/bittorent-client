@@ -4,6 +4,7 @@ import { app } from 'electron'
 
 export interface Settings {
   saveLocation: string
+  sidebarWidth: number
 }
 
 export class Store {
@@ -18,7 +19,8 @@ export class Store {
 
   private getDefaults(): Settings {
     return {
-      saveLocation: app.getPath('downloads')
+      saveLocation: app.getPath('downloads'),
+      sidebarWidth: 180
     }
   }
 

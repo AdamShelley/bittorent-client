@@ -31,10 +31,30 @@ export class TorrentStateManager {
     try {
       if (fs.existsSync(this.stateFilePath)) {
         const data = fs.readFileSync(this.stateFilePath, 'utf-8')
-        return JSON.parse(data)
+        // Handle empty or whitespace-only files
+        if (!data || data.trim() === '') {
+          console.warn('Torrent state file is empty, using defaults')
+          return { version: 1, torrents: [] }
+        }
+        const parsed = JSON.parse(data)
+        // Validate the parsed data has the expected structure
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.torrents)) {
+          return parsed
+        }
+        console.warn('Torrent state file has invalid structure, using defaults')
       }
     } catch (err) {
       console.error('Failed to load torrent state:', err)
+      // Backup corrupted file for debugging
+      try {
+        if (fs.existsSync(this.stateFilePath)) {
+          const backupPath = this.stateFilePath + '.corrupted.' + Date.now()
+          fs.renameSync(this.stateFilePath, backupPath)
+          console.log('Backed up corrupted state file to:', backupPath)
+        }
+      } catch {
+        // Ignore backup errors
+      }
     }
     return { version: 1, torrents: [] }
   }
@@ -43,7 +63,12 @@ export class TorrentStateManager {
     try {
       const userDataPath = app.getPath('userData')
       fs.mkdirSync(userDataPath, { recursive: true })
-      fs.writeFileSync(this.stateFilePath, JSON.stringify(this.state, null, 2))
+      
+      // Write to temp file first, then rename (atomic operation)
+      const tempPath = this.stateFilePath + '.tmp'
+      const data = JSON.stringify(this.state, null, 2)
+      fs.writeFileSync(tempPath, data)
+      fs.renameSync(tempPath, this.stateFilePath)
     } catch (err) {
       console.error('Failed to save torrent state:', err)
     }

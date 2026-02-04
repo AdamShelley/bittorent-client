@@ -7,7 +7,8 @@ export const connect = (
   peerList: PeerReturnType[],
   headerAssemblyResults: HeaderReturnType,
   decodedInfoSection: DecodedTorrent,
-  downloadLocation: string
+  downloadLocation: string,
+  customFolderName?: string
 ): Coordinator => {
-  return new Coordinator(peerList, headerAssemblyResults, decodedInfoSection, downloadLocation)
+  return new Coordinator(peerList, headerAssemblyResults, decodedInfoSection, downloadLocation, customFolderName)
 }

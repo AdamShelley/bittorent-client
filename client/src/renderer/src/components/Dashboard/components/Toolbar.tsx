@@ -1,8 +1,14 @@
-import { CirclePause, CirclePlay, DeleteIcon, FolderOpen, Settings } from 'lucide-react'
+import { CirclePause, CirclePlay, DeleteIcon, FolderOpen } from 'lucide-react'
 import { Dispatch, JSX, SetStateAction, useState } from 'react'
 import { toast } from 'sonner'
-import { SettingsModal } from '../../Settings/SettingsModal'
 import { DeleteConfirmDialog } from './DeleteConfirmDialog'
+import { AddTorrentModal } from './AddTorrentModal'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@renderer/components/ui/tooltip'
 
 interface ToolbarProps {
   currentTorrentId: string | null
@@ -17,8 +23,9 @@ export const Toolbar = ({
   setCurrentTorrentId,
   getTorrentList
 }: ToolbarProps): JSX.Element => {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isAddTorrentOpen, setIsAddTorrentOpen] = useState(false)
+  const [pendingTorrentPath, setPendingTorrentPath] = useState<string | null>(null)
 
   const showDialog = async (): Promise<void> => {
     const result = await window.api.openFileDialog()
@@ -27,17 +34,36 @@ export const Toolbar = ({
     if (!result.filePath) return
 
     console.log(result)
-    await startDownload(result.filePath)
+    setPendingTorrentPath(result.filePath)
+    setIsAddTorrentOpen(true)
   }
 
-  const startDownload = async (torrentPath: string): Promise<void> => {
-    const download = await window.api.startDownload(torrentPath)
+  const startDownload = async (
+    torrentPath: string,
+    options: { downloadLocation: string; folderName: string; selectedFiles?: string[] }
+  ): Promise<void> => {
+    const download = await window.api.startDownload(torrentPath, {
+      downloadLocation: options.downloadLocation,
+      folderName: options.folderName,
+      selectedFiles: options.selectedFiles
+    })
     console.log(download)
     setCurrentTorrentId(download.id)
     toast.success('Torrent added', {
       description: download.name
     })
     await getTorrentList()
+  }
+
+  const handleAddTorrentConfirm = async (options: {
+    downloadLocation: string
+    folderName: string
+    selectedFiles?: string[]
+  }): Promise<void> => {
+    if (pendingTorrentPath) {
+      await startDownload(pendingTorrentPath, options)
+      setPendingTorrentPath(null)
+    }
   }
 
   const pauseTorrent = async (torrentId: string): Promise<void> => {
@@ -71,42 +97,49 @@ export const Toolbar = ({
     }
   }
 
-  const openSettings = (): void => {
-    setIsSettingsOpen(true)
-  }
-
   return (
-    <>
-      <div className="flex gap-5 items-center w-full p-2 text-zinc-400/90 drag-region ">
-        <button onClick={showDialog} className="no-drag pl-2">
-          <FolderOpen className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition" />
-        </button>
-        <button
-          onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}
-          className="no-drag"
-        >
-          <CirclePlay className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-        </button>
-        <button
-          onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}
-          className="no-drag"
-        >
-          <CirclePause className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-        </button>
-
-        <button
-          onClick={handleDeleteClick}
-          className="no-drag"
-        >
-          <DeleteIcon className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-        </button>
-        <button onClick={openSettings} className="no-drag">
-          <Settings className="size-6 text-zinc-400/90 hover:text-slate-400 cursor-pointer transition " />
-        </button>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex gap-4 items-center w-full px-3 py-2 text-[#5c5c5f] drag-region">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={showDialog} className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors">
+              <FolderOpen className="w-4 h-4 hover:text-[#8b8b8e] transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Open Torrent</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => currentTorrentId && resumeTorrent(currentTorrentId)}
+              className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors"
+            >
+              <CirclePlay className="w-4 h-4 hover:text-[#8b8b8e] transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Resume</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => currentTorrentId && pauseTorrent(currentTorrentId)}
+              className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors"
+            >
+              <CirclePause className="w-4 h-4 hover:text-[#8b8b8e] transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Pause</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={handleDeleteClick} className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors">
+              <DeleteIcon className="w-4 h-4 hover:text-[#8b8b8e] transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Delete</TooltipContent>
+        </Tooltip>
       </div>
-      
-      <SettingsModal isOpen={isSettingsOpen} setIsOpen={setIsSettingsOpen} />
-      
+
       <DeleteConfirmDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
@@ -114,6 +147,16 @@ export const Toolbar = ({
         onDeleteWithData={() => currentTorrentId && deleteTorrent(currentTorrentId, true)}
         torrentName={currentTorrentName ?? undefined}
       />
-    </>
+
+      <AddTorrentModal
+        isOpen={isAddTorrentOpen}
+        onClose={() => {
+          setIsAddTorrentOpen(false)
+          setPendingTorrentPath(null)
+        }}
+        onConfirm={handleAddTorrentConfirm}
+        torrentPath={pendingTorrentPath}
+      />
+    </TooltipProvider>
   )
 }

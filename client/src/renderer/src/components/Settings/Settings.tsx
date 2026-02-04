@@ -29,25 +29,25 @@ export const Settings = () => {
   }
 
   return (
-    <div>
-      <ul>
-        <li className="flex flex-col gap-2">
-          <h5>Save Location</h5>
-          <div className="flex gap-2">
-            <Input
-              className="border-slate-300/50 rounded-sm flex-1 active:soutline-0"
-              value={saveLocation}
-              readOnly
-            />
-            <button
-              onClick={handleBrowse}
-              className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600 transition-colors"
-            >
-              Browse
-            </button>
-          </div>
-        </li>
-      </ul>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-[13px] text-[#8b8b8e]">
+          Download location
+        </label>
+        <div className="flex gap-2">
+          <Input
+            className="flex-1 h-8 bg-[#18181b] border-[#27272a] rounded-md px-3 text-[13px] text-[#ededef] focus:border-[#3f3f46] focus:ring-0"
+            value={saveLocation}
+            readOnly
+          />
+          <button
+            onClick={handleBrowse}
+            className="h-8 px-3 text-[13px] text-[#ededef] bg-[#18181b] border border-[#27272a] rounded-md hover:bg-[#222225] transition-colors"
+          >
+            Browse
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -25,22 +25,31 @@ export class Coordinator {
   interestedPeers: Set<Peer> = new Set()
   unchokedPeers: Set<Peer> = new Set()
   isPaused = false
+  isComplete = false
   private unchokeTimer?: NodeJS.Timeout
   private trackerTimer?: NodeJS.Timeout
   private onCompleteCallback?: (name: string) => void
+  
+  // Speed tracking
+  private lastSpeedCheck: number = 0
+  private bytesAtLastCheck: number = 0
+  private currentSpeed: number = 0
 
   private downloadLocation: string
+  private customFolderName?: string
 
   constructor(
     peerList: PeerReturnType[],
     headerAssemblyResults: HeaderReturnType,
     torrentInfo: DecodedTorrent,
-    downloadLocation: string
+    downloadLocation: string,
+    customFolderName?: string
   ) {
     this.peerList = peerList
     this.headers = headerAssemblyResults
     this.torrent = torrentInfo
     this.downloadLocation = downloadLocation
+    this.customFolderName = customFolderName
     // Handle both single-file and multi-file torrents
     if (torrentInfo.length) {
       this.totalFileSize = torrentInfo.length
@@ -72,7 +81,7 @@ export class Coordinator {
       this.torrent.pieces
     )
 
-    this.fileManager = new FileManager(torrentInfo, this.downloadLocation)
+    this.fileManager = new FileManager(torrentInfo, this.downloadLocation, this.customFolderName)
 
     const completed = this.fileManager.getResumeJsonFile()
 
@@ -169,10 +178,18 @@ export class Coordinator {
   }
 
   getDownloadSpeed(): number {
-    if (this.downloadStartTime === 0) return 0
-    const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000
-    if (elapsedSeconds === 0) return 0
-    return this.bytesDownloaded / elapsedSeconds / (1024 * 1024) // Returns MB/s
+    const now = Date.now()
+    const elapsed = now - this.lastSpeedCheck
+    
+    // Update speed every 1 second
+    if (elapsed >= 1000) {
+      const bytesDiff = this.bytesDownloaded - this.bytesAtLastCheck
+      this.currentSpeed = (bytesDiff / elapsed) * 1000 / (1024 * 1024) // MB/s
+      this.lastSpeedCheck = now
+      this.bytesAtLastCheck = this.bytesDownloaded
+    }
+    
+    return this.currentSpeed
   }
 
   getTorrentPercent(): number {
@@ -241,6 +258,9 @@ export class Coordinator {
     peer: Peer,
     pieceData: { pieceIndex: number; offset: number; block: Buffer }
   ): void => {
+    // Don't process pieces if download is complete or paused
+    if (this.isComplete || this.isPaused) return
+    
     if (this.downloadStartTime === 0) {
       this.downloadStartTime = Date.now()
     }
@@ -306,10 +326,9 @@ export class Coordinator {
         peer.sendHave(pieceData.pieceIndex)
       })
 
-      // Download logging
+      // Download logging - use the same speed calculation as getDownloadSpeed()
       const activePeers = this.peers.filter((p) => !p.peerChoking).length
-      const elapsedSeconds = (Date.now() - this.downloadStartTime) / 1000
-      const speedMBps = this.bytesDownloaded / elapsedSeconds / (1024 * 1024)
+      const speedMBps = this.getDownloadSpeed()
       const progress = ((this.pieceManager.getCompletedCount() / this.totalPieces) * 100).toFixed(1)
 
       console.log(
@@ -325,10 +344,21 @@ export class Coordinator {
       }
 
       if (this.pieceManager.getCompletedCount() === this.totalPieces) {
+        // Mark as complete first to stop processing new pieces
+        this.isComplete = true
+        
+        // Stop all timers
+        this.stopTimers()
+        
+        // Disconnect all peers to stop incoming data
+        this.peers.forEach((peer) => peer.pause())
+        this.peers = []
+        
+        // Save resume state and close file
         this.fileManager.writeToResume(this.pieceManager.getCompletedPieces(), true)
         this.fileManager.closeFile()
         console.log('*** Download complete!', this.fileManager.getOutputPath())
-        
+
         // Notify completion
         if (this.onCompleteCallback) {
           const torrentName = this.torrent.name.toString()
