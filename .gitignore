@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -25,3 +26,12 @@ dist-ssr
 
 /test/.torrent
 /downloaded
+CHANGES.md
+
+/client/node_modules
+/client/dist
+/client/out
+/client/.DS_Store
+/client/.eslintcache
+/client/*.log*
+/client/downloaded

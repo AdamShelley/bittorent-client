@@ -1,0 +1,56 @@
+@import './base.css';
+
+html,
+#root {
+  overflow: hidden;
+  background-color: transparent !important;
+  background: transparent !important;
+  user-select: none;
+  height: 100%;
+  width: 100%;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 12, 0.6) 0%,
+    rgba(10, 10, 12, 0.5) 40%,
+    rgba(12, 12, 14, 0.45) 100%
+  );
+  user-select: none;
+  position: relative;
+}
+
+/* Texture overlay using pseudo-element */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('./texture.svg');
+  background-size: 100px 100px;
+  background-repeat: repeat;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Make the top bar draggable for window movement */
+.drag-region {
+  -webkit-app-region: drag;
+  background: transparent;
+}
+
+/* Prevent dragging on interactive elements */
+.no-drag {
+  -webkit-app-region: no-drag;
+}

@@ -48,7 +48,7 @@ export class Peer extends EventEmitter {
     peer: PeerReturnType,
     headerAssemblyResults: HeaderReturnType,
     completedPieces: Set<number>,
-    totalPieces: number
+    totalPieces: number,
   ) {
     super();
     this.peer = peer;
@@ -106,7 +106,7 @@ export class Peer extends EventEmitter {
 
         const matchingHash = this.checkInfoHash(
           this.clientInfoHash,
-          res.info_hash
+          res.info_hash,
         );
 
         if (!matchingHash) {
@@ -116,7 +116,7 @@ export class Peer extends EventEmitter {
         this.handshakeDone = true;
 
         const encodedBitfield = encodeBitfield(
-          this.constructBitfield(this.clientBitfield!, this.totalPieces)
+          this.constructBitfield(this.clientBitfield!, this.totalPieces),
         );
 
         // console.log(
@@ -247,7 +247,9 @@ export class Peer extends EventEmitter {
       // console.log(`Peer ${this.PEER_IP} refused connection`);
       // Don't retry, move to next peer
     } else if (nodeError.code === "ENETUNREACH") {
+    } else if (nodeError.code === "ECONNRESET") {
     } else {
+      console.log("Handle ERROR");
       console.warn(error);
     }
   };
@@ -299,7 +301,7 @@ export class Peer extends EventEmitter {
     this.requestQueue = this.requestQueue.filter((block) => {
       if (block.pieceIndex === pieceIndex) {
         this.socket?.write(
-          encodeCancel(block.pieceIndex, block.offset, block.length)
+          encodeCancel(block.pieceIndex, block.offset, block.length),
         );
         return false;
       }
@@ -309,7 +311,7 @@ export class Peer extends EventEmitter {
     this.pendingRequests = this.pendingRequests.filter((block) => {
       if (block.pieceIndex === pieceIndex) {
         this.socket?.write(
-          encodeCancel(block.pieceIndex, block.offset, block.length)
+          encodeCancel(block.pieceIndex, block.offset, block.length),
         );
         return false;
       }
@@ -320,7 +322,7 @@ export class Peer extends EventEmitter {
 
   constructBitfield = (
     completedPieces: Set<number>,
-    totalPieces: number
+    totalPieces: number,
   ): Buffer => {
     const bytesNeeded = Math.ceil(totalPieces / 8);
     const buffer = Buffer.alloc(bytesNeeded);
