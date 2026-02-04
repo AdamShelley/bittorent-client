@@ -10,5 +10,11 @@ export const connect = (
   downloadLocation: string,
   customFolderName?: string
 ): Coordinator => {
-  return new Coordinator(peerList, headerAssemblyResults, decodedInfoSection, downloadLocation, customFolderName)
+  return new Coordinator(
+    peerList,
+    headerAssemblyResults,
+    decodedInfoSection,
+    downloadLocation,
+    customFolderName
+  )
 }

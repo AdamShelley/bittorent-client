@@ -102,7 +102,10 @@ export const Toolbar = ({
       <div className="flex gap-4 items-center w-full px-3 py-2 text-[#5c5c5f] drag-region">
         <Tooltip>
           <TooltipTrigger asChild>
-            <button onClick={showDialog} className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors">
+            <button
+              onClick={showDialog}
+              className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors"
+            >
               <FolderOpen className="w-4 h-4 hover:text-[#8b8b8e] transition-colors" />
             </button>
           </TooltipTrigger>
@@ -132,7 +135,10 @@ export const Toolbar = ({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button onClick={handleDeleteClick} className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors">
+            <button
+              onClick={handleDeleteClick}
+              className="no-drag p-1.5 rounded-md hover:bg-[#18181b] transition-colors"
+            >
               <DeleteIcon className="w-4 h-4 hover:text-[#8b8b8e] transition-colors" />
             </button>
           </TooltipTrigger>

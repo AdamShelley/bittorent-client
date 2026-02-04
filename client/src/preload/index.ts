@@ -37,7 +37,9 @@ const api = {
       callback(data)
     ipcRenderer.on('torrent-completed', handler)
     return () => ipcRenderer.removeListener('torrent-completed', handler)
-  }
+  },
+  openTorrentFolder: (torrentId: string): Promise<boolean> =>
+    ipcRenderer.invoke('open-torrent-folder', torrentId)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

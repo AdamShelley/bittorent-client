@@ -29,11 +29,13 @@ export class Coordinator {
   private unchokeTimer?: NodeJS.Timeout
   private trackerTimer?: NodeJS.Timeout
   private onCompleteCallback?: (name: string) => void
-  
-  // Speed tracking
+
+  // Speed tracking with rolling average
   private lastSpeedCheck: number = 0
   private bytesAtLastCheck: number = 0
   private currentSpeed: number = 0
+  private speedSamples: number[] = []
+  private readonly SPEED_SAMPLE_COUNT = 5
 
   private downloadLocation: string
   private customFolderName?: string
@@ -150,6 +152,52 @@ export class Coordinator {
     this.startPeerConnection()
     this.unchokeRotation()
     this.startTimers()
+
+    // If in endgame mode, trigger endgame requests after peers have time to connect
+    if (this.pieceManager.isEndgameMode) {
+      setTimeout(() => {
+        if (!this.isPaused && !this.isComplete) {
+          console.log('🏁 Resuming in endgame mode - requesting remaining pieces')
+          this.triggerEndgameRequests()
+        }
+      }, 3000) // Give peers 3 seconds to handshake
+    }
+
+    // Also fetch fresh peers from tracker
+    this.fetchFreshPeers()
+  }
+
+  private async fetchFreshPeers(): Promise<void> {
+    if (!this.headers) return
+
+    try {
+      const newPeers = await getPeerList(
+        {
+          ...this.headers,
+          ...this.getAnnounceStats()
+        },
+        this.torrent['announce-list']
+      )
+
+      const existingIPs = new Set(this.peers.map((p) => `${p.PEER_IP}:${p.PEER_PORT}`))
+      const freshPeers = newPeers.filter((peer) => !existingIPs.has(`${peer.ip}:${peer.port}`))
+
+      if (freshPeers.length > 0) {
+        console.log(`Found ${freshPeers.length} fresh peers`)
+        freshPeers.slice(0, 50).forEach((peer) => {
+          const newPeer = new Peer(
+            peer,
+            this.headers!,
+            this.pieceManager.completedPieces,
+            this.totalPieces
+          )
+          this.attachListeners(newPeer)
+          this.peers.push(newPeer)
+        })
+      }
+    } catch (e) {
+      console.error('Failed to fetch fresh peers:', e)
+    }
   }
 
   getAnnounceStats(): { uploaded: number; downloaded: number; left: number } {
@@ -180,15 +228,29 @@ export class Coordinator {
   getDownloadSpeed(): number {
     const now = Date.now()
     const elapsed = now - this.lastSpeedCheck
-    
+
     // Update speed every 1 second
     if (elapsed >= 1000) {
       const bytesDiff = this.bytesDownloaded - this.bytesAtLastCheck
-      this.currentSpeed = (bytesDiff / elapsed) * 1000 / (1024 * 1024) // MB/s
+      const instantSpeed = ((bytesDiff / elapsed) * 1000) / (1024 * 1024) // MB/s
+      
+      // Add to rolling samples
+      this.speedSamples.push(instantSpeed)
+      if (this.speedSamples.length > this.SPEED_SAMPLE_COUNT) {
+        this.speedSamples.shift()
+      }
+      
+      // Calculate average of samples
+      this.currentSpeed = this.speedSamples.reduce((a, b) => a + b, 0) / this.speedSamples.length
+      
       this.lastSpeedCheck = now
       this.bytesAtLastCheck = this.bytesDownloaded
+    } else if (elapsed > 3000 && this.currentSpeed > 0) {
+      // If no update for 3+ seconds, speed is likely stalled - decay it
+      this.currentSpeed = this.currentSpeed * 0.5
+      this.speedSamples = [this.currentSpeed]
     }
-    
+
     return this.currentSpeed
   }
 
@@ -237,6 +299,7 @@ export class Coordinator {
 
   onPeerUnchoked = (peer: Peer): void => {
     // Find a piece that's needed AND not in-progress AND the peer has
+    if (this.isComplete) return
     return this.assignPieceToDownload(peer)
   }
 
@@ -260,7 +323,7 @@ export class Coordinator {
   ): void => {
     // Don't process pieces if download is complete or paused
     if (this.isComplete || this.isPaused) return
-    
+
     if (this.downloadStartTime === 0) {
       this.downloadStartTime = Date.now()
     }
@@ -339,24 +402,27 @@ export class Coordinator {
 
       this.fileManager.writeToResume(this.pieceManager.getCompletedPieces(), false)
 
-      if (this.pieceManager.getPiecesNeededCount() <= 20) {
+      if (this.pieceManager.getPiecesNeededCount() <= 20 && !this.pieceManager.isEndgameMode) {
         this.pieceManager.setEndgameMode(true)
+        console.log('🏁 Entering endgame mode - requesting remaining pieces from all peers')
+        // Request all remaining pieces from all unchoked peers
+        this.triggerEndgameRequests()
       }
 
       if (this.pieceManager.getCompletedCount() === this.totalPieces) {
         // Mark as complete first to stop processing new pieces
         this.isComplete = true
-        
+
         // Stop all timers
-        this.stopTimers()
-        
-        // Disconnect all peers to stop incoming data
-        this.peers.forEach((peer) => peer.pause())
-        this.peers = []
-        
+        // this.stopTimers()
+
+        // // Disconnect all peers to stop incoming data
+        // this.peers.forEach((peer) => peer.pause())
+        // this.peers = []
+
         // Save resume state and close file
         this.fileManager.writeToResume(this.pieceManager.getCompletedPieces(), true)
-        this.fileManager.closeFile()
+        // this.fileManager.closeFile()
         console.log('*** Download complete!', this.fileManager.getOutputPath())
 
         // Notify completion
@@ -373,7 +439,7 @@ export class Coordinator {
   }
 
   assignPieceToDownload = (peer: Peer): void => {
-    if (this.isPaused) return
+    if (this.isComplete || this.isPaused) return
 
     const pieceIndex = this.pieceManager.getPieceToDownload(peer)
     if (pieceIndex == null) return
@@ -384,6 +450,28 @@ export class Coordinator {
     })
 
     this.pieceManager.trackPeerAssignment(pieceIndex, peer)
+  }
+
+  triggerEndgameRequests = (): void => {
+    // Get all unchoked peers
+    const unchokedPeers = this.peers.filter((p) => !p.peerChoking && p.handshakeDone)
+    
+    // Get remaining pieces needed
+    const piecesNeeded = Array.from(this.pieceManager.piecesNeeded)
+    
+    // Request each remaining piece from every peer that has it
+    for (const pieceIndex of piecesNeeded) {
+      const blocks = this.pieceManager.getPieceBlocks(pieceIndex)
+      
+      for (const peer of unchokedPeers) {
+        if (peer.hasPiece(pieceIndex)) {
+          blocks?.forEach((block) => {
+            peer.requestPiece(pieceIndex, block.offset, block.length)
+          })
+          this.pieceManager.trackPeerAssignment(pieceIndex, peer)
+        }
+      }
+    }
   }
 
   onPeerDisconnected = async (peer: Peer): Promise<void> => {
@@ -470,6 +558,8 @@ export class Coordinator {
 
     const buffer = Buffer.alloc(requestPiece.length)
     const position = requestPiece.pieceIndex * this.pieceLength + requestPiece.offset
+
+    console.log('Peer requested a piece, reading filemanager')
 
     this.fileManager.readFilePiece(buffer, requestPiece, position, peer)
   }

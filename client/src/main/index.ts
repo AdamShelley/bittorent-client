@@ -8,11 +8,18 @@ import { registerTorrentIpc } from './ipc/torrent.ipc'
 import { torrentManager } from './torrent/Electron-entry/TorrentManager'
 import { store, Settings } from './store/Store'
 
+let mainWindow: BrowserWindow | null = null
+
 function createWindow(): void {
+  // Get saved window bounds
+  const savedBounds = store.get('windowBounds')
+
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+  mainWindow = new BrowserWindow({
+    width: savedBounds.width,
+    height: savedBounds.height,
+    x: savedBounds.x,
+    y: savedBounds.y,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
@@ -29,9 +36,42 @@ function createWindow(): void {
     }
   })
 
+  // Restore maximized state if previously maximized
+  if (savedBounds.isMaximized) {
+    mainWindow.maximize()
+  }
+
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow?.show()
   })
+
+  // Save window bounds when resized or moved
+  const saveWindowBounds = (): void => {
+    if (!mainWindow) return
+    const isMaximized = mainWindow.isMaximized()
+    if (!isMaximized) {
+      const bounds = mainWindow.getBounds()
+      store.set('windowBounds', {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        isMaximized: false
+      })
+    } else {
+      // Keep the previous bounds but mark as maximized
+      const currentBounds = store.get('windowBounds')
+      store.set('windowBounds', {
+        ...currentBounds,
+        isMaximized: true
+      })
+    }
+  }
+
+  mainWindow.on('resized', saveWindowBounds)
+  mainWindow.on('moved', saveWindowBounds)
+  mainWindow.on('maximize', saveWindowBounds)
+  mainWindow.on('unmaximize', saveWindowBounds)
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)

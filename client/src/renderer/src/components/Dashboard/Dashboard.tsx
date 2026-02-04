@@ -89,6 +89,10 @@ const Dashboard = (): React.JSX.Element => {
     return torrent?.name ?? null
   }, [currentTorrentId, torrents])
 
+  const handleTorrentDoubleClick = async (id: string): Promise<void> => {
+    await window.api.openTorrentFolder(id)
+  }
+
   return (
     <div className="flex h-full w-full">
       <ResizableSidebar
@@ -110,6 +114,7 @@ const Dashboard = (): React.JSX.Element => {
             torrents={filteredTorrents}
             currentTorrentId={currentTorrentId}
             onTorrentClick={setCurrentTorrentId}
+            onTorrentDoubleClick={handleTorrentDoubleClick}
           />
         </div>
       </div>

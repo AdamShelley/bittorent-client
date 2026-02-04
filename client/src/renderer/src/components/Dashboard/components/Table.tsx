@@ -24,6 +24,7 @@ interface TorrentTableProps {
   torrents: Torrent[]
   currentTorrentId: string | null
   onTorrentClick: (id: string) => void
+  onTorrentDoubleClick: (id: string) => void
 }
 
 interface ColumnWidths {
@@ -38,7 +39,8 @@ interface ColumnWidths {
 export const TorrentTable = ({
   torrents,
   currentTorrentId,
-  onTorrentClick
+  onTorrentClick,
+  onTorrentDoubleClick
 }: TorrentTableProps): React.JSX.Element => {
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
     name: 280,
@@ -113,17 +115,17 @@ export const TorrentTable = ({
     // If completed or no speed, return appropriate message
     if (torrent.percent >= 100) return '—'
     if (torrent.status === 'paused') return 'Paused'
-    
+
     const speedMBps = parseFloat(torrent.speed || '0')
     if (speedMBps <= 0) return '∞'
-    
+
     const remaining = torrent.totalSize - torrent.downloaded
     if (remaining <= 0) return '—'
-    
+
     // Convert MB/s to bytes/s
     const speedBps = speedMBps * 1024 * 1024
     const secondsRemaining = remaining / speedBps
-    
+
     if (secondsRemaining < 60) {
       return `${Math.ceil(secondsRemaining)}s`
     } else if (secondsRemaining < 3600) {
@@ -141,11 +143,7 @@ export const TorrentTable = ({
     }
   }
 
-  const ResizeHandle = ({
-    column
-  }: {
-    column: keyof ColumnWidths
-  }): React.JSX.Element => (
+  const ResizeHandle = ({ column }: { column: keyof ColumnWidths }): React.JSX.Element => (
     <div
       className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[#3f3f46] transition-colors group"
       onMouseDown={(e) => handleMouseDown(e, column)}
@@ -196,6 +194,7 @@ export const TorrentTable = ({
           <TableRow
             key={torrent.id}
             onClick={() => onTorrentClick(torrent.id)}
+            onDoubleClick={() => onTorrentDoubleClick(torrent.id)}
             className={cn(
               'cursor-pointer border-b border-[#ffffff08] transition-colors',
               currentTorrentId === torrent.id

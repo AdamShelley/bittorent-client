@@ -79,7 +79,9 @@ export class FileManager {
     const fullFileName = this.torrentInfo.name.toString()
     const lastDotIndex = fullFileName.lastIndexOf('.')
     // Use custom folder name if provided, otherwise extract from filename
-    const folderName = this.customFolderName ?? (lastDotIndex > 0 ? fullFileName.substring(0, lastDotIndex) : fullFileName)
+    const folderName =
+      this.customFolderName ??
+      (lastDotIndex > 0 ? fullFileName.substring(0, lastDotIndex) : fullFileName)
 
     // Create download folder structure
     this.outputFolder = path.join(this.downloadLocation, folderName)
@@ -109,7 +111,7 @@ export class FileManager {
   ) {
     // Don't write if file is closed
     if (this.isClosed) return
-    
+
     const pieceStart = pieceData.pieceIndex * pieceLength
     const pieceEnd = pieceData.pieceIndex * pieceLength + (result?.pieceSize || 0)
 
@@ -186,7 +188,7 @@ export class FileManager {
   closeFile() {
     if (this.isClosed) return
     this.isClosed = true
-    
+
     if (this.files.length > 0) {
       // Multi-file: close all files
       this.files.forEach((file) => {

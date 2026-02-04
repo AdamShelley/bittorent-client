@@ -14,6 +14,20 @@ interface TorrentInfo {
   files: { path: string; size: number }[]
 }
 
+interface WindowBounds {
+  x?: number
+  y?: number
+  width: number
+  height: number
+  isMaximized?: boolean
+}
+
+interface Settings {
+  saveLocation: string
+  sidebarWidth: number
+  windowBounds: WindowBounds
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -29,9 +43,10 @@ declare global {
       resumeDownload: (torrentId: string) => Promise<void>
       deleteTorrent: (torrentId: string, deleteData?: boolean) => Promise<void>
       getTorrentList: () => Promise<Torrent[]>
-      getSettings: () => Promise<{ saveLocation: string; sidebarWidth: number }>
-      saveSettings: (settings: Record<string, unknown>) => Promise<{ saveLocation: string; sidebarWidth: number }>
+      getSettings: () => Promise<Settings>
+      saveSettings: (settings: Partial<Settings>) => Promise<Settings>
       onTorrentCompleted: (callback: (data: { id: string; name: string }) => void) => () => void
+      openTorrentFolder: (torrentId: string) => Promise<boolean>
     }
   }
 }

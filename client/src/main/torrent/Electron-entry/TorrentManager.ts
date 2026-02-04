@@ -239,6 +239,12 @@ class TorrentManager {
       torrentStateManager.updateTorrentStatus(id, 'paused')
     })
   }
+
+  // Get the folder path for a torrent
+  getTorrentFolder(id: string): string | null {
+    const torrent = this.torrents.get(id)
+    return torrent?.getOutputFolder() ?? null
+  }
 }
 
 export const torrentManager = new TorrentManager()

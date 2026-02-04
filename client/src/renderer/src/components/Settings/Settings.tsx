@@ -31,9 +31,7 @@ export const Settings = () => {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-[13px] text-[#8b8b8e]">
-          Download location
-        </label>
+        <label className="text-[13px] text-[#8b8b8e]">Download location</label>
         <div className="flex gap-2">
           <Input
             className="flex-1 h-8 bg-[#18181b] border-[#27272a] rounded-md px-3 text-[13px] text-[#ededef] focus:border-[#3f3f46] focus:ring-0"

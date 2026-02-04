@@ -25,7 +25,11 @@ interface TorrentInfo {
 interface AddTorrentModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: (options: { downloadLocation: string; folderName: string; selectedFiles?: string[] }) => void
+  onConfirm: (options: {
+    downloadLocation: string
+    folderName: string
+    selectedFiles?: string[]
+  }) => void
   torrentPath: string | null
 }
 
@@ -111,10 +115,11 @@ export const AddTorrentModal = ({
   }
 
   const handleConfirm = (): void => {
-    onConfirm({ 
-      downloadLocation, 
+    onConfirm({
+      downloadLocation,
       folderName,
-      selectedFiles: torrentInfo && torrentInfo.files.length > 1 ? Array.from(selectedFiles) : undefined
+      selectedFiles:
+        torrentInfo && torrentInfo.files.length > 1 ? Array.from(selectedFiles) : undefined
     })
     onClose()
   }
@@ -156,7 +161,10 @@ export const AddTorrentModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#111113] ring-[#222225]/50 sm:max-w-md p-0" aria-describedby={undefined}>
+      <DialogContent
+        className="bg-[#111113] ring-[#222225]/50 sm:max-w-md p-0"
+        aria-describedby={undefined}
+      >
         <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="text-[13px] font-medium text-[#ededef]">Add Torrent</DialogTitle>
           <DialogDescription className="sr-only">
@@ -179,12 +187,13 @@ export const AddTorrentModal = ({
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] text-[#ededef] truncate">{torrentInfo.name}</p>
                       <p className="text-[12px] text-[#5c5c5f] mt-0.5">
-                        {formatSize(selectedSize)} of {formatSize(torrentInfo.totalSize)} · {selectedFiles.size}/{torrentInfo.files.length} file
+                        {formatSize(selectedSize)} of {formatSize(torrentInfo.totalSize)} ·{' '}
+                        {selectedFiles.size}/{torrentInfo.files.length} file
                         {torrentInfo.files.length !== 1 ? 's' : ''} selected
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* File Selection */}
                   {torrentInfo.files.length > 1 && (
                     <div className="rounded-md border border-[#27272a] overflow-hidden">
@@ -199,7 +208,7 @@ export const AddTorrentModal = ({
                         )}
                         <span>Select files</span>
                       </button>
-                      
+
                       {isFilesExpanded && (
                         <div className="border-t border-[#27272a]">
                           {/* Select All */}
@@ -217,13 +226,11 @@ export const AddTorrentModal = ({
                                     : 'border-[#3f3f46]'
                               )}
                             >
-                              {selectedFiles.size > 0 && (
-                                <Check className="w-3 h-3 text-white" />
-                              )}
+                              {selectedFiles.size > 0 && <Check className="w-3 h-3 text-white" />}
                             </div>
                             <span className="text-[#ededef]">Select All</span>
                           </button>
-                          
+
                           {/* File List */}
                           <div className="max-h-48 overflow-y-auto">
                             {torrentInfo.files.map((file) => (
@@ -244,8 +251,12 @@ export const AddTorrentModal = ({
                                     <Check className="w-3 h-3 text-white" />
                                   )}
                                 </div>
-                                <span className="text-[#ededef] truncate flex-1 text-left">{file.path}</span>
-                                <span className="text-[#5c5c5f] shrink-0">{formatSize(file.size)}</span>
+                                <span className="text-[#ededef] truncate flex-1 text-left">
+                                  {file.path}
+                                </span>
+                                <span className="text-[#5c5c5f] shrink-0">
+                                  {formatSize(file.size)}
+                                </span>
                               </button>
                             ))}
                           </div>

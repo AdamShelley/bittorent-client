@@ -2,9 +2,18 @@ import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 
+export interface WindowBounds {
+  x?: number
+  y?: number
+  width: number
+  height: number
+  isMaximized?: boolean
+}
+
 export interface Settings {
   saveLocation: string
   sidebarWidth: number
+  windowBounds: WindowBounds
 }
 
 export class Store {
@@ -20,7 +29,11 @@ export class Store {
   private getDefaults(): Settings {
     return {
       saveLocation: app.getPath('downloads'),
-      sidebarWidth: 180
+      sidebarWidth: 180,
+      windowBounds: {
+        width: 900,
+        height: 670
+      }
     }
   }
 

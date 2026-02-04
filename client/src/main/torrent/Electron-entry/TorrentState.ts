@@ -63,7 +63,7 @@ export class TorrentStateManager {
     try {
       const userDataPath = app.getPath('userData')
       fs.mkdirSync(userDataPath, { recursive: true })
-      
+
       // Write to temp file first, then rename (atomic operation)
       const tempPath = this.stateFilePath + '.tmp'
       const data = JSON.stringify(this.state, null, 2)
