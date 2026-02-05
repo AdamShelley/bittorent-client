@@ -49,7 +49,10 @@ export const getPeerList = async (
       let peerInfo: PeerReturnType[] = []
 
       // Route to appropriate handler based on protocol
-      if (trackerUrl.startsWith('udp://')) {
+
+      if (trackerUrl.startsWith('magnet:')) {
+        peerInfo = await handleMagnetLinks((trackerUrl, headerAssemblyResults))
+      } else if (trackerUrl.startsWith('udp://')) {
         // console.log(`📡 Trying UDP tracker: ${trackerUrl}`);
         peerInfo = await handleUDPTrackers(trackerUrl, headerAssemblyResults)
       } else {

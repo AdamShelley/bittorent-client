@@ -101,11 +101,8 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
+  // Register all IPC handlers BEFORE creating the window
   registerTorrentIpc()
-
-  // Restore persisted torrents on app startup
-  await torrentManager.restorePersistedTorrents()
 
   ipcMain.handle('open-file', async (): Promise<OpenFileResult> => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -148,6 +145,12 @@ app.whenReady().then(async () => {
 
     return { canceled: false, path: filePaths[0] }
   })
+
+  // Now create the window after all handlers are registered
+  createWindow()
+
+  // Restore persisted torrents on app startup
+  await torrentManager.restorePersistedTorrents()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
