@@ -1,5 +1,6 @@
 import { decode } from '../bencode/bencode'
 import type { HeaderReturnType } from '../header-assembly/headers'
+import { handleMagnetLinks } from '../magnet-links/magnet'
 import { handleUDPTrackers } from '../udp-tracker/contact-tracker-udp'
 
 export interface PeerReturnType {
