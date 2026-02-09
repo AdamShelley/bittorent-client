@@ -1,17 +1,19 @@
 import base32 from 'thirty-two'
+import { HeaderReturnType } from '../header-assembly/headers'
+import crypto from 'crypto'
+import { PeerReturnType } from '../http-requests/contact-tracker'
+import { MetadataPeer } from '../peer-protocol/metadata-peer'
 
-export const handleMagnetLinks = async (
-  url: string
-): Promise<{ info_hash_buffer: Buffer; trackers: string[] } | null> => {
-  const parseMagnetString = (
-    magnet: string
-  ): { info_hash_buffer: Buffer; trackers: string[] } | null => {
+export interface MagnetHeaderReturnType extends HeaderReturnType {
+  trackers: string[]
+}
+
+export const handleMagnetLinks = async (url: string): Promise<MagnetHeaderReturnType | null> => {
+  const parseMagnetString = (magnet: string): MagnetHeaderReturnType | null => {
     const params = new URLSearchParams(magnet)
     const trackers = params.getAll('tr')
+    const length = params.get('xl') ?? 0
     const info_hash: string | undefined = params.get('xt')?.split(':')[2]
-
-    console.log(trackers)
-    console.log(info_hash)
 
     // convert the info_hash
 
@@ -30,17 +32,34 @@ export const handleMagnetLinks = async (
 
     if (!decodedBuffer) return null
 
-    console.log('decoded buffer', decodedBuffer)
-
     return {
-      info_hash_buffer: decodedBuffer,
-      trackers
+      url: magnet,
+      info_hash: decodedBuffer,
+      trackers,
+      peer_id: createPeerId(),
+      port: 6881,
+      uploaded: 0,
+      downloaded: 0,
+      left: length ? Number(length) : 0,
+      compact: 1
     }
   }
 
-  return parseMagnetString(url.split('magnet:')[1])
+  const result = parseMagnetString(url.split('magnet:')[1])
+  return result
 }
 
-handleMagnetLinks(
-  'magnet:?xt=urn:btih:554CC47F9DA3A45CF6A4D94802BC154358C27EE9&dn=Shaun+of+the+Dead+%282004%29+%281080p+Brrip+x265+HEVC+10bit+AAC+7.1%29&tr=http%3A%2F%2Fp4p.arenabg.com%3A1337%2Fannounce&tr=udp%3A%2F%2F47.ip-51-68-199.eu%3A6969%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2780%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2710%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2730%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2920%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fopentracker.i2p.rocks%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.cyberia.is%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.internetwarriors.net%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Ftracker.pirateparty.gr%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.tiny-vps.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce'
-)
+const createPeerId = (): Buffer => {
+  const prefix = Buffer.from('-AS0001-')
+  const random = crypto.randomBytes(12)
+  return Buffer.concat([prefix, random])
+}
+
+export const requestMetadata = async (
+  peerList: PeerReturnType[],
+  magnetResults: MagnetHeaderReturnType
+): Promise<void> => {
+  const metadataPeer = new MetadataPeer(peerList[0], magnetResults)
+
+  metadataPeer.getMetadata()
+}

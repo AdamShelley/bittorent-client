@@ -1,5 +1,5 @@
 import { CirclePause, CirclePlay, DeleteIcon, FolderOpen } from 'lucide-react'
-import { Dispatch, JSX, SetStateAction, useState } from 'react'
+import { Dispatch, JSX, SetStateAction, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { DeleteConfirmDialog } from './DeleteConfirmDialog'
 import { AddTorrentModal } from './AddTorrentModal'
@@ -9,6 +9,8 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@renderer/components/ui/tooltip'
+import { Button } from '@renderer/components/ui/button'
+import { Input } from '@renderer/components/ui/input'
 
 interface ToolbarProps {
   currentTorrentId: string | null
@@ -26,6 +28,11 @@ export const Toolbar = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isAddTorrentOpen, setIsAddTorrentOpen] = useState(false)
   const [pendingTorrentPath, setPendingTorrentPath] = useState<string | null>(null)
+  const [defaultDownloadLocation, setDefaultDownloadLocation] = useState('')
+
+  const [magnetLink, setMagnetLink] = useState<string>(
+    'magnet:?xt=urn:btih:554CC47F9DA3A45CF6A4D94802BC154358C27EE9&dn=Shaun+of+the+Dead+%282004%29+%281080p+Brrip+x265+HEVC+10bit+AAC+7.1%29&tr=http%3A%2F%2Fp4p.arenabg.com%3A1337%2Fannounce&tr=udp%3A%2F%2F47.ip-51-68-199.eu%3A6969%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2780%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2710%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2730%2Fannounce&tr=udp%3A%2F%2F9.rarbg.to%3A2920%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fopentracker.i2p.rocks%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.cyberia.is%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.dler.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.internetwarriors.net%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Ftracker.pirateparty.gr%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.tiny-vps.com%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce'
+  )
 
   const showDialog = async (): Promise<void> => {
     const result = await window.api.openFileDialog()
@@ -33,7 +40,6 @@ export const Toolbar = ({
     if (result.canceled) return
     if (!result.filePath) return
 
-    console.log(result)
     setPendingTorrentPath(result.filePath)
     setIsAddTorrentOpen(true)
   }
@@ -97,6 +103,24 @@ export const Toolbar = ({
     }
   }
 
+  const useMagnetLink = (): void => {
+    startDownload(magnetLink, {
+      downloadLocation: defaultDownloadLocation,
+      folderName: 'test'
+    })
+  }
+
+  useEffect(() => {
+    // Load default download location from settings on mount
+    const loadSettings = async (): Promise<void> => {
+      const settings = await window.api.getSettings()
+      if (settings?.saveLocation) {
+        setDefaultDownloadLocation(settings.saveLocation)
+      }
+    }
+    loadSettings()
+  }, [])
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex gap-4 items-center w-full px-3 py-2 text-[#5c5c5f] drag-region">
@@ -143,6 +167,19 @@ export const Toolbar = ({
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">Delete</TooltipContent>
+        </Tooltip>
+        <Input
+          className="no-drag"
+          value={magnetLink}
+          onChange={(e) => setMagnetLink(e.target.value)}
+        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button className="no-drag" onClick={useMagnetLink}>
+              Use Magnet
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Magnet link</TooltipContent>
         </Tooltip>
       </div>
 

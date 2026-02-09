@@ -82,6 +82,7 @@ class TorrentManager {
   ): Promise<{ id: string; torrentPath: string; downloadLocation: string; name: string }> {
     const saveLocation = options?.downloadLocation ?? store.get('saveLocation')
     console.log('Starting torrent with saveLocation:', saveLocation)
+
     const torrent = new StartTorrent(torrentPath, saveLocation, options?.folderName)
     await torrent.start()
 
@@ -149,7 +150,6 @@ class TorrentManager {
       totalSize: torrent.getTotalFileSize()
     }))
 
-    console.log('Listing torrents:', result)
     return result
   }
 
