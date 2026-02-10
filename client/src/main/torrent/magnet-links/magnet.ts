@@ -59,7 +59,18 @@ export const requestMetadata = async (
   peerList: PeerReturnType[],
   magnetResults: MagnetHeaderReturnType
 ): Promise<void> => {
-  const metadataPeer = new MetadataPeer(peerList[0], magnetResults)
+  // Try first few peers in parallel for metadata requests, attach listeners
+  peerList.slice(0, 5).map((peer) => {
+    const m = new MetadataPeer(peer, magnetResults)
 
-  metadataPeer.getMetadata()
+    m.on('error', (err) => {
+      console.error('metadataPeer error:', err)
+    })
+
+    m.on('disconnected', () => {
+      console.warn(`metadataPeer disconnected: ${peer.ip}:${peer.port}`)
+    })
+
+    return m
+  })
 }
