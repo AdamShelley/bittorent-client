@@ -48,8 +48,7 @@ export class MetadataPeer extends EventEmitter {
 
     this.socket.once('connect', () => {
       clearTimeout(connectTimer)
-      console.log(`Connected to ${this.PEER_IP}:${this.PEER_PORT}`)
-      // send handshake now that socket is connected
+      console.log(`✅ TCP connected to ${this.PEER_IP}:${this.PEER_PORT}, sending handshake...`)
       this.socket?.write(encodedHandshake)
     })
 
@@ -136,6 +135,7 @@ export class MetadataPeer extends EventEmitter {
           const message = this.buffer.subarray(0, convertedLength + 4)
 
           const parsed = decode(message)
+          this.buffer = this.buffer.subarray(4 + convertedLength)
           console.log('Message ID:', parsed?.id)
 
           if (parsed.id === 20) {
