@@ -108,6 +108,7 @@ export class MetadataPeer extends EventEmitter {
 
         const extHandshakeMsg = Buffer.concat([header, Buffer.from([0]), payloadBuf])
         this.socket?.write(extHandshakeMsg)
+        this.messageParsing()
       } catch {
         // console.warn(
         //   `Handshake failed with ${this.PEER_IP}:`,
@@ -119,32 +120,35 @@ export class MetadataPeer extends EventEmitter {
       }
     } else {
       this.buffer = Buffer.concat([this.buffer, data])
+      this.messageParsing()
+    }
+  }
 
-      while (this.buffer.length >= 4) {
-        // Read the first 4 bytes for length
-        const length = this.buffer.subarray(0, 4)
-        const convertedLength = length.readUInt32BE(0)
+  messageParsing(): void {
+    while (this.buffer.length >= 4) {
+      // Read the first 4 bytes for length
+      const length = this.buffer.subarray(0, 4)
+      const convertedLength = length.readUInt32BE(0)
 
-        // Handle keep alive
-        if (convertedLength === 0) {
-          this.buffer = this.buffer.subarray(4)
-          continue
+      // Handle keep alive
+      if (convertedLength === 0) {
+        this.buffer = this.buffer.subarray(4)
+        continue
+      }
+
+      if (this.buffer.length >= 4 + convertedLength) {
+        const message = this.buffer.subarray(0, convertedLength + 4)
+
+        const parsed = decode(message)
+        this.buffer = this.buffer.subarray(4 + convertedLength)
+        console.log('Message ID:', parsed?.id)
+
+        if (parsed.id === 20) {
+          // TODO:
+          console.log('Parsed id 20:', parsed)
         }
-
-        if (this.buffer.length >= 4 + convertedLength) {
-          const message = this.buffer.subarray(0, convertedLength + 4)
-
-          const parsed = decode(message)
-          this.buffer = this.buffer.subarray(4 + convertedLength)
-          console.log('Message ID:', parsed?.id)
-
-          if (parsed.id === 20) {
-            // TODO:
-            console.log('Ext worked')
-          }
-        } else {
-          break
-        }
+      } else {
+        break
       }
     }
   }

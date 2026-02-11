@@ -93,7 +93,15 @@ export const encodeCancel = (index: number, begin: number, length: number) => {
 
 // DECODING
 
-export const decodeHandshake = (encoded: Buffer) => {
+export const decodeHandshake = (
+  encoded: Buffer
+): {
+  first_byte: number
+  bittorrentProtocol: string
+  reserved: Buffer
+  info_hash: Buffer
+  peer_id: Buffer
+} => {
   const protocolLength = encoded[0]
   const protocol = encoded.subarray(1, 20).toString('utf8')
   const reserved = encoded.subarray(20, 28)
