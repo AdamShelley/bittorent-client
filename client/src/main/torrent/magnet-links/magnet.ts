@@ -60,7 +60,8 @@ export const requestMetadata = async (
   magnetResults: MagnetHeaderReturnType
 ): Promise<void> => {
   // Try first few peers in parallel for metadata requests, attach listeners
-  peerList.slice(0, 30).map((peer) => {
+  console.log('Total number of peers: ', peerList)
+  peerList.slice(0, 40).map((peer) => {
     const m = new MetadataPeer(peer, magnetResults)
 
     m.on('error', (err) => {

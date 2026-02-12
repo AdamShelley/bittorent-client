@@ -170,6 +170,7 @@ export const decode = (buffer: Buffer): { messageType: string; id?: number; resu
   if (!length) return { messageType: 'keep-alive' }
 
   const bufferId = buffer[4]
+  console.log('BUFFER ID', bufferId)
 
   switch (bufferId) {
     case 0:
@@ -190,6 +191,12 @@ export const decode = (buffer: Buffer): { messageType: string; id?: number; resu
       return { messageType: 'piece', id: 7, result: decodePiece(buffer) }
     case 8:
       return { messageType: 'cancel', id: 8, result: decodeCancel(buffer) }
+    case 20:
+      return {
+        messageType: 'extension',
+        id: 20,
+        result: { subId: Number(buffer[5]), data: buffer.subarray(6) }
+      }
     default:
       return { messageType: 'error' }
   }

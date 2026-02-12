@@ -4,7 +4,7 @@ import { PeerReturnType } from '../http-requests/contact-tracker'
 import { MagnetHeaderReturnType } from '../magnet-links/magnet'
 import { Socket } from 'net'
 import { decode, decodeHandshake, encodeHandshake } from './peer-protocol'
-import { encode } from '../bencode/bencode'
+import { decode as bencodeDecoder, encode } from '../bencode/bencode'
 
 export class MetadataPeer extends EventEmitter {
   peer: PeerReturnType | null = null
@@ -144,8 +144,13 @@ export class MetadataPeer extends EventEmitter {
         console.log('Message ID:', parsed?.id)
 
         if (parsed.id === 20) {
-          // TODO:
           console.log('Parsed id 20:', parsed)
+          const decodedData = bencodeDecoder(parsed.result.data, 0)
+          console.log(decodedData)
+
+          // TODO:
+          // Divide metadata_size (21307) by 16384 and round up for number of pieces to request
+          // For each piece send a request message
         }
       } else {
         break
