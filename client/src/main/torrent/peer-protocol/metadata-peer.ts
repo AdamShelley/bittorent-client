@@ -14,6 +14,7 @@ export class MetadataPeer extends EventEmitter {
   PEER_IP: string | null = null
   handshakeDone: boolean = false
   buffer: Buffer = Buffer.alloc(0)
+  PIECE_SIZE_MAX = 16384
 
   constructor(peer: PeerReturnType, magnetResults: MagnetHeaderReturnType) {
     super()
@@ -75,6 +76,10 @@ export class MetadataPeer extends EventEmitter {
     })
 
     this.socket.on('data', (data) => this.handleData(data))
+  }
+
+  checkInfoHash = (clientHash: Buffer, peerHash: Buffer): boolean => {
+    return clientHash.equals(peerHash)
   }
 
   handleData = (data: Buffer): void => {
@@ -144,21 +149,42 @@ export class MetadataPeer extends EventEmitter {
         console.log('Message ID:', parsed?.id)
 
         if (parsed.id === 20) {
-          console.log('Parsed id 20:', parsed)
           const decodedData = bencodeDecoder(parsed.result.data, 0)
           console.log(decodedData)
 
-          // TODO:
-          // Divide metadata_size (21307) by 16384 and round up for number of pieces to request
-          // For each piece send a request message
+          if (parsed.result.subId === 0) {
+            const ut_metadata_value = decodedData?.decodedValue.m.ut_metadata
+
+            // Divide metadata_size (21307) by 16384 and round up for number of pieces to request
+            const pieceSize = Math.ceil(
+              decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
+            )
+            // For each piece send a request message
+            for (let i = 0; i < pieceSize; i++) {
+              const payloadBuf = Buffer.from(encode({ msg_type: 0, piece: i }), 'utf8')
+              const len = 2 + payloadBuf.length
+              const header = Buffer.alloc(5)
+              header.writeUInt32BE(len, 0)
+              header[4] = 20
+
+              const extHandshakeMsg = Buffer.concat([
+                header,
+                Buffer.from([ut_metadata_value]),
+                payloadBuf
+              ])
+              this.socket?.write(extHandshakeMsg)
+            }
+          } else if (parsed.result.subId === 1) {
+            // Store each piece's raw bytes (from index 45 onward) in order
+            // Wait for all pieces to arrive (piece 0 and piece 1 in your case)
+            // Concatenate them
+            // SHA1 hash the result and compare to your info_hash
+            // If it matches, bencode-decode it — that's your info dictionary
+          }
+        } else {
+          break
         }
-      } else {
-        break
       }
     }
-  }
-
-  checkInfoHash = (clientHash: Buffer, peerHash: Buffer): boolean => {
-    return clientHash.equals(peerHash)
   }
 }
