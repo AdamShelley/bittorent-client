@@ -15,6 +15,10 @@ export class MetadataPeer extends EventEmitter {
   handshakeDone: boolean = false
   buffer: Buffer = Buffer.alloc(0)
   PIECE_SIZE_MAX = 16384
+  infoHashBuffer: Buffer = Buffer.alloc(0)
+  metadataPieces: Buffer[] = []
+  metadataSize: number | null = null
+  totalPieceCount: number = 0
 
   constructor(peer: PeerReturnType, magnetResults: MagnetHeaderReturnType) {
     super()
@@ -143,7 +147,6 @@ export class MetadataPeer extends EventEmitter {
 
       if (this.buffer.length >= 4 + convertedLength) {
         const message = this.buffer.subarray(0, convertedLength + 4)
-
         const parsed = decode(message)
         this.buffer = this.buffer.subarray(4 + convertedLength)
         console.log('Message ID:', parsed?.id)
@@ -152,15 +155,42 @@ export class MetadataPeer extends EventEmitter {
           const decodedData = bencodeDecoder(parsed.result.data, 0)
           console.log(decodedData)
 
+          this.metadataSize = decodedData?.decodedValue.metadata_size
+          this.if (this.buffer.length >= 4 + convertedLength) {
+        const message = this.buffer.subarray(0, convertedLength + 4)
+        const parsed = decode(message)
+        this.buffer = this.buffer.subarray(4 + convertedLength)
+        console.log('Message ID:', parsed?.id)
+
+        if (parsed.id === 20) {
+          const decodedData = bencodeDecoder(parsed.result.data, 0)
+          console.log(decodedData)
+
+          this.metadataSize = decodedData?.decodedValue.metadata_size
+          this.if (this.buffer.length >= 4 + convertedLength) {
+        const message = this.buffer.subarray(0, convertedLength + 4)
+        const parsed = decode(message)
+        this.buffer = this.buffer.subarray(4 + convertedLength)
+        console.log('Message ID:', parsed?.id)
+
+        if (parsed.id === 20) {
+          const decodedData = bencodeDecoder(parsed.result.data, 0)
+          console.log(decodedData)
+
+          this.metadataSize = decodedData?.decodedValue.metadata_size
+          this.totalPieceCount = Math.ceil(
+            decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
+          )
+
           if (parsed.result.subId === 0) {
             const ut_metadata_value = decodedData?.decodedValue.m.ut_metadata
 
             // Divide metadata_size (21307) by 16384 and round up for number of pieces to request
-            const pieceSize = Math.ceil(
+            const numberOfPieces = Math.ceil(
               decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
             )
             // For each piece send a request message
-            for (let i = 0; i < pieceSize; i++) {
+            for (let i = 0; i < numberOfPieces; i++) {
               const payloadBuf = Buffer.from(encode({ msg_type: 0, piece: i }), 'utf8')
               const len = 2 + payloadBuf.length
               const header = Buffer.alloc(5)
@@ -176,14 +206,94 @@ export class MetadataPeer extends EventEmitter {
             }
           } else if (parsed.result.subId === 1) {
             // Store each piece's raw bytes (from index 45 onward) in order
-            // Wait for all pieces to arrive (piece 0 and piece 1 in your case)
+            const pieceIndex = decodedData?.decodedValue.pieceIndex
+            const rawBytes = parsed.result.data.subarray(decodedData?.index)
+
+            this.metadataPieces[pieceIndex] = rawBytes
+
             // Concatenate them
             // SHA1 hash the result and compare to your info_hash
             // If it matches, bencode-decode it — that's your info dictionary
           }
-        } else {
-          break
         }
+      } else { = Math.ceil(
+            decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
+          )
+
+          if (parsed.result.subId === 0) {
+            const ut_metadata_value = decodedData?.decodedValue.m.ut_metadata
+
+            // Divide metadata_size (21307) by 16384 and round up for number of pieces to request
+            const numberOfPieces = Math.ceil(
+              decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
+            )
+            // For each piece send a request message
+            for (let i = 0; i < numberOfPieces; i++) {
+              const payloadBuf = Buffer.from(encode({ msg_type: 0, piece: i }), 'utf8')
+              const len = 2 + payloadBuf.length
+              const header = Buffer.alloc(5)
+              header.writeUInt32BE(len, 0)
+              header[4] = 20
+
+              const extHandshakeMsg = Buffer.concat([
+                header,
+                Buffer.from([ut_metadata_value]),
+                payloadBuf
+              ])
+              this.socket?.write(extHandshakeMsg)
+            }
+          } else if (parsed.result.subId === 1) {
+            // Store each piece's raw bytes (from index 45 onward) in order
+            const pieceIndex = decodedData?.decodedValue.pieceIndex
+            const rawBytes = parsed.result.data.subarray(decodedData?.index)
+
+            this.metadataPieces[pieceIndex] = rawBytes
+
+            // Concatenate them
+            // SHA1 hash the result and compare to your info_hash
+            // If it matches, bencode-decode it — that's your info dictionary
+          }
+        }
+      } else { = Math.ceil(
+            decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
+          )
+
+          if (parsed.result.subId === 0) {
+            const ut_metadata_value = decodedData?.decodedValue.m.ut_metadata
+
+            // Divide metadata_size (21307) by 16384 and round up for number of pieces to request
+            const numberOfPieces = Math.ceil(
+              decodedData?.decodedValue.metadata_size / this.PIECE_SIZE_MAX
+            )
+            // For each piece send a request message
+            for (let i = 0; i < numberOfPieces; i++) {
+              const payloadBuf = Buffer.from(encode({ msg_type: 0, piece: i }), 'utf8')
+              const len = 2 + payloadBuf.length
+              const header = Buffer.alloc(5)
+              header.writeUInt32BE(len, 0)
+              header[4] = 20
+
+              const extHandshakeMsg = Buffer.concat([
+                header,
+                Buffer.from([ut_metadata_value]),
+                payloadBuf
+              ])
+              this.socket?.write(extHandshakeMsg)
+            }
+          } else if (parsed.result.subId === 1) {
+            // Store each piece's raw bytes (from index 45 onward) in order
+            const pieceIndex = decodedData?.decodedValue.pieceIndex
+            const rawBytes = parsed.result.data.subarray(decodedData?.index)
+
+            this.metadataPieces[pieceIndex] = rawBytes
+
+            // Concatenate them
+            // SHA1 hash the result and compare to your info_hash
+            // If it matches, bencode-decode it — that's your info dictionary
+          }
+        }
+      } else {
+        break
       }
     }
   }
