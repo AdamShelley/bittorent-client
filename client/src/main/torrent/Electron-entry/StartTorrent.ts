@@ -35,11 +35,26 @@ export class StartTorrent {
         // Get peers from tracker using info_hash and trackers
         const peerList = await getPeerList(magnetResults, magnetResults.trackers)
         if (!peerList) throw new Error('Getting peer list failed')
-        // TODO: Implement metadata exchange with peers
         const magnetMetadata = await requestMetadata(peerList, magnetResults)
-        console.log(magnetMetadata)
 
-        return
+        this.torrent = magnetMetadata.decodedValue
+        console.log(this.torrent)
+
+        const fileSize = magnetMetadata.decodedValue.files
+          ? magnetMetadata.decodedValue.files.reduce((sum, f) => sum + f.length, 0)
+          : (magnetMetadata.decodedValue.length ?? 0)
+
+        const headers = {
+          ...magnetResults,
+          left: fileSize
+        }
+
+        this.coordinator = connect(
+          peerList,
+          headers,
+          magnetMetadata.decodedValue,
+          this.downloadLocation!
+        )
       } else {
         if (!fs.existsSync(this.torrentPath)) {
           throw new Error(`File not found at path "${this.torrentPath}".`)

@@ -203,7 +203,7 @@ export class MetadataPeer extends EventEmitter {
               if (match) {
                 // bencode-decode the concatenated buffer - and emit
                 const decodedDict = bencodeDecoder(fullBuffer, 0)
-                console.log('This is the info dict', decodedDict)
+                this.emit('info_dictionary', decodedDict, fullBuffer)
               }
             }
           }

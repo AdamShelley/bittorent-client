@@ -3,9 +3,21 @@ import { HeaderReturnType } from '../header-assembly/headers'
 import crypto from 'crypto'
 import { PeerReturnType } from '../http-requests/contact-tracker'
 import { MetadataPeer } from '../peer-protocol/metadata-peer'
+import { once } from 'events'
 
 export interface MagnetHeaderReturnType extends HeaderReturnType {
   trackers: string[]
+}
+
+export interface DecodedDict {
+  decodedValue: {
+    files?: { length: number; path: Buffer[] }[]
+    length?: number
+    name: Buffer
+    'piece length': number
+    pieces: Buffer
+  }
+  index: number
 }
 
 export const handleMagnetLinks = async (url: string): Promise<MagnetHeaderReturnType | null> => {
@@ -58,20 +70,14 @@ const createPeerId = (): Buffer => {
 export const requestMetadata = async (
   peerList: PeerReturnType[],
   magnetResults: MagnetHeaderReturnType
-): Promise<void> => {
+): Promise<DecodedDict> => {
   // Try first few peers in parallel for metadata requests, attach listeners
   console.log('Total number of peers: ', peerList)
-  peerList.slice(0, 40).map((peer) => {
+  const promises = peerList.slice(0, 40).map((peer) => {
     const m = new MetadataPeer(peer, magnetResults)
-
-    m.on('error', (err) => {
-      console.error('metadataPeer error:', err)
-    })
-
-    m.on('disconnected', () => {
-      console.warn(`metadataPeer disconnected: ${peer.ip}:${peer.port}`)
-    })
-
-    return m
+    return once(m, 'info_dictionary')
   })
+  const [dict] = await Promise.any(promises)
+  console.log(dict)
+  return dict
 }
