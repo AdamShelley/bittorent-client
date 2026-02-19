@@ -47,6 +47,7 @@ declare global {
       saveSettings: (settings: Partial<Settings>) => Promise<Settings>
       onTorrentCompleted: (callback: (data: { id: string; name: string }) => void) => () => void
       openTorrentFolder: (torrentId: string) => Promise<boolean>
+      onMagnetLink: (callback: (magnetUrl: string) => void) => () => void
     }
   }
 }

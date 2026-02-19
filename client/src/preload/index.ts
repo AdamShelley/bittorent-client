@@ -39,7 +39,12 @@ const api = {
     return () => ipcRenderer.removeListener('torrent-completed', handler)
   },
   openTorrentFolder: (torrentId: string): Promise<boolean> =>
-    ipcRenderer.invoke('open-torrent-folder', torrentId)
+    ipcRenderer.invoke('open-torrent-folder', torrentId),
+  onMagnetLink: (callback: (magnetUrl: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, magnetUrl: string) => callback(magnetUrl)
+    ipcRenderer.on('magnet-link', handler)
+    return () => ipcRenderer.removeListener('magnet-link', handler)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

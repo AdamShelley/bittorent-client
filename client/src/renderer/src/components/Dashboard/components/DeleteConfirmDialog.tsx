@@ -27,54 +27,66 @@ export const DeleteConfirmDialog = ({
 }: DeleteConfirmDialogProps): JSX.Element => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-slate-900/95 ring-slate-800/50 sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-zinc-100">Delete Torrent</DialogTitle>
-          <DialogDescription className="text-zinc-400">
+      <DialogContent
+        className="bg-[#111113] ring-[#222225]/50 sm:max-w-md p-0"
+        aria-describedby={undefined}
+      >
+        <DialogHeader className="px-5 pt-5 pb-0">
+          <DialogTitle className="text-[13px] font-medium text-[#ededef]">Delete Torrent</DialogTitle>
+          <DialogDescription className="sr-only">
+            Confirm how you want to delete this torrent
+          </DialogDescription>
+        </DialogHeader>
+        <div className="p-5 pt-4 space-y-4">
+          <div className="text-[13px] text-[#ededef]">
             {torrentName ? (
               <>
                 How would you like to delete{' '}
-                <span className="font-medium text-zinc-300">{torrentName}</span>?
+                <span className="font-medium text-[#ededef]">{torrentName}</span>?
               </>
             ) : (
               'How would you like to delete this torrent?'
             )}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3 py-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-auto py-3 bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 text-zinc-200"
-            onClick={() => {
-              onDeleteFromList()
-              onClose()
-            }}
-          >
-            <Trash2 className="size-5 text-zinc-400" />
-            <div className="text-left">
-              <div className="font-medium">Remove from list</div>
-              <div className="text-xs text-zinc-500">Keep downloaded files on disk</div>
-            </div>
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 h-auto py-3 bg-red-950/30 border-red-900/50 hover:bg-red-900/40 text-red-200"
-            onClick={() => {
-              onDeleteWithData()
-              onClose()
-            }}
-          >
-            <FolderX className="size-5 text-red-400" />
-            <div className="text-left">
-              <div className="font-medium">Delete with data</div>
-              <div className="text-xs text-red-400/70">
-                Remove torrent and delete all downloaded files
+          </div>
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-auto py-3 bg-[#18181b] border-[#27272a] hover:bg-[#222225] text-[#ededef]"
+              onClick={() => {
+                onDeleteFromList()
+                onClose()
+              }}
+            >
+              <Trash2 className="w-5 h-5 text-[#8b8b8e]" />
+              <div className="text-left">
+                <div className="font-medium">Remove from list</div>
+                <div className="text-xs text-[#5c5c5f]">Keep downloaded files on disk</div>
               </div>
-            </div>
-          </Button>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-auto py-3 bg-[#2a1517] border-[#3f1d1d] hover:bg-[#3f1d1d] text-[#f87171]"
+              onClick={() => {
+                onDeleteWithData()
+                onClose()
+              }}
+            >
+              <FolderX className="w-5 h-5 text-[#f87171]" />
+              <div className="text-left">
+                <div className="font-medium">Delete with data</div>
+                <div className="text-xs text-[#fca5a5]">
+                  Remove torrent and delete all downloaded files
+                </div>
+              </div>
+            </Button>
+          </div>
         </div>
-        <DialogFooter className="bg-slate-800/30">
-          <Button variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-zinc-200">
+        <DialogFooter className="px-5 py-4 border-t border-[#ffffff08] gap-2">
+          <Button
+            variant="ghost"
+            onClick={onClose}
+            className="h-8 px-4 text-[13px] text-[#8b8b8e] hover:text-[#ededef] transition-colors"
+          >
             Cancel
           </Button>
         </DialogFooter>

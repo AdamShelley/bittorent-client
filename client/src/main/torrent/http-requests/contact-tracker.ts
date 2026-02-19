@@ -1,5 +1,6 @@
 import { decode } from '../bencode/bencode'
 import type { HeaderReturnType } from '../header-assembly/headers'
+import { handleMagnetLinks } from '../magnet-links/magnet'
 import { handleUDPTrackers } from '../udp-tracker/contact-tracker-udp'
 
 export interface PeerReturnType {
@@ -49,6 +50,7 @@ export const getPeerList = async (
       let peerInfo: PeerReturnType[] = []
 
       // Route to appropriate handler based on protocol
+
       if (trackerUrl.startsWith('udp://')) {
         // console.log(`📡 Trying UDP tracker: ${trackerUrl}`);
         peerInfo = await handleUDPTrackers(trackerUrl, headerAssemblyResults)

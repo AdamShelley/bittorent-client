@@ -5,6 +5,7 @@ import { getPeerList } from '../http-requests/contact-tracker'
 import { connect } from '../peer-protocol/connect'
 import { DecodedTorrent } from '../../../types/types'
 import { Coordinator } from '../coordinator/Coordinator'
+import { handleMagnetLinks, requestMetadata } from '../magnet-links/magnet'
 
 export class StartTorrent {
   torrentPath: string | null = null
@@ -27,58 +28,85 @@ export class StartTorrent {
         throw new Error('No torrent file path provided.')
       }
 
-      console.log('Torrent Path:', this.torrentPath)
+      if (this.torrentPath.startsWith('magnet:')) {
+        const magnetResults = await handleMagnetLinks(this.torrentPath)
+        if (!magnetResults) throw new Error('Failed to parse magnet link')
 
-      if (!fs.existsSync(this.torrentPath)) {
-        throw new Error(`File not found at path "${this.torrentPath}".`)
+        // Get peers from tracker using info_hash and trackers
+        const peerList = await getPeerList(magnetResults, magnetResults.trackers)
+        if (!peerList) throw new Error('Getting peer list failed')
+        const magnetMetadata = await requestMetadata(peerList, magnetResults)
+
+        this.torrent = magnetMetadata.decodedValue
+        console.log(this.torrent)
+
+        const fileSize = magnetMetadata.decodedValue.files
+          ? magnetMetadata.decodedValue.files.reduce((sum, f) => sum + f.length, 0)
+          : (magnetMetadata.decodedValue.length ?? 0)
+
+        const headers = {
+          ...magnetResults,
+          left: fileSize
+        }
+
+        this.coordinator = connect(
+          peerList,
+          headers,
+          magnetMetadata.decodedValue,
+          this.downloadLocation!
+        )
+      } else {
+        if (!fs.existsSync(this.torrentPath)) {
+          throw new Error(`File not found at path "${this.torrentPath}".`)
+        }
+
+        let buffer: Buffer
+        try {
+          buffer = fs.readFileSync(this.torrentPath)
+        } catch (err) {
+          throw new Error(`Failed to read file "${this.torrentPath}".\n${(err as Error).message}`)
+        }
+
+        // DECODE FILE
+        const searchString = '4:info'
+        const position = buffer.indexOf(searchString)
+        if (position === -1) {
+          throw new Error('Invalid torrent file: could not find info section')
+        }
+        const infoStart = position + searchString.length
+        const decoded = decode(buffer, 0)
+        const infoSection = decode(buffer, infoStart)
+
+        if (!decoded) throw new Error('Decoding failed')
+        if (!infoSection) throw new Error('No info section')
+
+        const infoEnd = infoSection.index
+        const rawInfoBytes = buffer.subarray(infoStart, infoEnd)
+
+        // ASSEMBLE HEADERS
+        const headerAssemblyResults = headerAssembly(decoded.decodedValue, rawInfoBytes)
+
+        if (!headerAssemblyResults) throw new Error('Assembling header failed')
+
+        // GET PEER LIST, IDS, PORTS
+        const peerList = await getPeerList(
+          headerAssemblyResults,
+          decoded.decodedValue['announce-list']
+        )
+        if (!peerList) throw new Error('Getting peer list failed')
+
+        // Store torrent info for later access
+        this.torrent = infoSection.decodedValue
+
+        // Connect to peers, request pieces etc
+        this.coordinator = connect(
+          peerList,
+          headerAssemblyResults,
+          infoSection.decodedValue,
+          this.downloadLocation!,
+          this.customFolderName ?? undefined
+        )
       }
-
-      let buffer: Buffer
-      try {
-        buffer = fs.readFileSync(this.torrentPath)
-      } catch (err) {
-        throw new Error(`Failed to read file "${this.torrentPath}".\n${(err as Error).message}`)
-      }
-
-      // DECODE FILE
-      const searchString = '4:info'
-      const position = buffer.indexOf(searchString)
-      if (position === -1) {
-        throw new Error('Invalid torrent file: could not find info section')
-      }
-      const infoStart = position + searchString.length
-      const decoded = decode(buffer, 0)
-      const infoSection = decode(buffer, infoStart)
-
-      if (!decoded) throw new Error('Decoding failed')
-      if (!infoSection) throw new Error('No info section')
-
-      const infoEnd = infoSection.index
-      const rawInfoBytes = buffer.subarray(infoStart, infoEnd)
-
-      // ASSEMBLE HEADERS
-      const headerAssemblyResults = headerAssembly(decoded.decodedValue, rawInfoBytes)
-
-      if (!headerAssemblyResults) throw new Error('Assembling header failed')
-
-      // GET PEER LIST, IDS, PORTS
-      const peerList = await getPeerList(
-        headerAssemblyResults,
-        decoded.decodedValue['announce-list']
-      )
-      if (!peerList) throw new Error('Getting peer list failed')
-
-      // Store torrent info for later access
-      this.torrent = infoSection.decodedValue
-
-      // Connect to peers, request pieces etc
-      this.coordinator = connect(
-        peerList,
-        headerAssemblyResults,
-        infoSection.decodedValue,
-        this.downloadLocation!,
-        this.customFolderName ?? undefined
-      )
     } catch (e) {
       console.error(`Error starting torrent: ${(e as Error).message}`)
       throw e

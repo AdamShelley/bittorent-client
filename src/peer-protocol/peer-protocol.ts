@@ -5,6 +5,7 @@ export const encodeHandshake = (info_hash: Buffer, peer_id: Buffer) => {
   const bittorentProtocol = Buffer.from("BitTorrent protocol");
   // 8 reserved bytes
   const reserved = Buffer.alloc(8);
+  reserved[5] = 0x10;
 
   const finalBuffer = Buffer.concat([
     firstByte,
@@ -62,7 +63,7 @@ export const encodeBitfield = (bitfield: Buffer) => {
 export const encodeRequest = (
   pieceIndex: number,
   offset: number,
-  length: number
+  length: number,
 ) => {
   const buffer = Buffer.alloc(17);
   buffer.writeUInt32BE(13, 0);
@@ -168,7 +169,7 @@ export const decodeCancel = (buffer: Buffer) => {
 };
 
 export const decode = (
-  buffer: Buffer
+  buffer: Buffer,
 ): { messageType: string; id?: number; result?: any } => {
   const length = buffer.readUInt32BE(0);
   if (!length) return { messageType: "keep-alive" };
@@ -194,6 +195,12 @@ export const decode = (
       return { messageType: "piece", id: 7, result: decodePiece(buffer) };
     case 8:
       return { messageType: "cancel", id: 8, result: decodeCancel(buffer) };
+    case 20:
+      return {
+        messageType: "extension",
+        id: 20,
+        result: { subId: Number(buffer[5]), data: buffer.subarray(6) },
+      };
     default:
       return { messageType: "error" };
   }

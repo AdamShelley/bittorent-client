@@ -15,5 +15,8 @@
     "tsx": "^4.7.0",
     "typescript": "~5.9.3",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "thirty-two": "^1.0.2"
   }
 }
