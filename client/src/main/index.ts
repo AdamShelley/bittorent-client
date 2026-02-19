@@ -9,6 +9,34 @@ import { torrentManager } from './torrent/Electron-entry/TorrentManager'
 import { store, Settings } from './store/Store'
 
 let mainWindow: BrowserWindow | null = null
+let pendingMagnet: string | null = null
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+  process.exit(0)
+}
+
+app.on('second-instance', (_, argv) => {
+  const magnet = argv.find((arg) => arg.startsWith('magnet:'))
+  if (magnet) {
+    if (mainWindow) {
+      mainWindow.focus()
+      mainWindow.webContents.send('magnet-link', magnet)
+    } else {
+      pendingMagnet = magnet
+    }
+  }
+})
+
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  if (mainWindow) {
+    mainWindow.focus()
+    mainWindow.webContents.send('magnet-link', url)
+  } else {
+    pendingMagnet = url
+  }
+})
 
 function createWindow(): void {
   // Get saved window bounds
@@ -43,6 +71,10 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+    if (pendingMagnet) {
+      mainWindow?.webContents.send('magnet-link', pendingMagnet)
+      pendingMagnet = null
+    }
   })
 
   // Save window bounds when resized or moved
@@ -93,6 +125,7 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
+  app.setAsDefaultProtocolClient('magnet')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -151,6 +184,10 @@ app.whenReady().then(async () => {
 
   // Restore persisted torrents on app startup
   await torrentManager.restorePersistedTorrents()
+  const coldStartMagnet = process.argv.find((arg) => arg.startsWith('magnet:'))
+  if (coldStartMagnet) {
+    pendingMagnet = coldStartMagnet
+  }
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

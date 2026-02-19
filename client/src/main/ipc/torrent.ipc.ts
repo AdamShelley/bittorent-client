@@ -10,6 +10,7 @@ export function registerTorrentIpc(): void {
     torrentManager.removeTorrent(id, deleteData)
   )
   ipcMain.handle('list-torrents', () => torrentManager.listTorrents())
+  ipcMain.handle('start-magnet', (_, magnetUrl) => torrentManager.startTorrent(magnetUrl, {}))
   ipcMain.handle('open-torrent-folder', async (_, id: string) => {
     const folderPath = torrentManager.getTorrentFolder(id)
     if (folderPath) {

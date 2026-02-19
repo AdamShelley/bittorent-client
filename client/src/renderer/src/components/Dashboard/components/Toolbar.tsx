@@ -121,6 +121,17 @@ export const Toolbar = ({
     loadSettings()
   }, [])
 
+  useEffect(() => {
+    const cleanup = window.api.onMagnetLink((url) => {
+      setMagnetLink(url)
+      startDownload(url, {
+        downloadLocation: defaultDownloadLocation,
+        folderName: 'test'
+      })
+    })
+    return cleanup
+  }, [defaultDownloadLocation])
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex gap-4 items-center w-full px-3 py-2 text-[#5c5c5f] drag-region">
