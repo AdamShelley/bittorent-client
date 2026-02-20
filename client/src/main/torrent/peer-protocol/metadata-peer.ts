@@ -91,7 +91,6 @@ export class MetadataPeer extends EventEmitter {
     if (!this.handshakeDone) {
       try {
         const res = decodeHandshake(data)
-        console.log('🤝 Handshake received:', res)
 
         if (data.length > 68) {
           const leftover = data.subarray(68)

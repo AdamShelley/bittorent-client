@@ -29,10 +29,9 @@ export const Toolbar = ({
   const [isAddTorrentOpen, setIsAddTorrentOpen] = useState(false)
   const [pendingTorrentPath, setPendingTorrentPath] = useState<string | null>(null)
   const [defaultDownloadLocation, setDefaultDownloadLocation] = useState('')
+  const [showMagnetInput, setShowMagnetInput] = useState<boolean>(false)
 
-  const [magnetLink, setMagnetLink] = useState<string>(
-    'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent'
-  )
+  const [magnetLink, setMagnetLink] = useState<string>('')
 
   const showDialog = async (): Promise<void> => {
     const result = await window.api.openFileDialog()
@@ -179,19 +178,38 @@ export const Toolbar = ({
           </TooltipTrigger>
           <TooltipContent side="bottom">Delete</TooltipContent>
         </Tooltip>
-        <Input
-          className="no-drag"
-          value={magnetLink}
-          onChange={(e) => setMagnetLink(e.target.value)}
-        />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button className="no-drag" onClick={useMagnetLink}>
-              Use Magnet
+        {!showMagnetInput && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button className="no-drag" onClick={() => setShowMagnetInput(true)}>
+                Use Magnet
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Open Magnet Link Input</TooltipContent>
+          </Tooltip>
+        )}
+        {showMagnetInput ? (
+          <>
+            <Input
+              className="no-drag"
+              value={magnetLink}
+              placeholder="Add magnet link here"
+              onChange={(e) => setMagnetLink(e.target.value)}
+            />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button className="no-drag" onClick={useMagnetLink}>
+                  Add Torrent
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Magnet link</TooltipContent>
+            </Tooltip>
+            <Button className="no-drag" onClick={() => setShowMagnetInput(false)}>
+              X
             </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Magnet link</TooltipContent>
-        </Tooltip>
+          </>
+        ) : null}
       </div>
 
       <DeleteConfirmDialog
