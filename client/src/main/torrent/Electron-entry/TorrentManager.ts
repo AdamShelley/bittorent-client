@@ -20,9 +20,7 @@ class TorrentManager {
     torrentPath: string
   ): { name: string; totalSize: number; files: { path: string; size: number }[] } | null {
     try {
-      console.log('getTorrentInfo called with path:', torrentPath)
       if (!fs.existsSync(torrentPath)) {
-        console.log('File does not exist:', torrentPath)
         return null
       }
 
@@ -30,7 +28,6 @@ class TorrentManager {
       const searchString = '4:info'
       const position = buffer.indexOf(searchString)
       if (position === -1) {
-        console.log('Could not find info section in torrent file')
         return null
       }
 
@@ -38,7 +35,6 @@ class TorrentManager {
       const infoSection = decode(buffer, infoStart)
 
       if (!infoSection) {
-        console.log('Failed to decode info section')
         return null
       }
 
@@ -68,7 +64,6 @@ class TorrentManager {
         files.push({ path: name, size: totalSize })
       }
 
-      console.log('Torrent info parsed:', { name, totalSize, filesCount: files.length })
       return { name, totalSize, files }
     } catch (e) {
       console.error('Error getting torrent info:', e)
@@ -81,7 +76,6 @@ class TorrentManager {
     options?: TorrentOptions
   ): Promise<{ id: string; torrentPath: string; downloadLocation: string; name: string }> {
     const saveLocation = options?.downloadLocation ?? store.get('saveLocation')
-    console.log('Starting torrent with saveLocation:', saveLocation)
 
     const torrent = new StartTorrent(torrentPath, saveLocation, options?.folderName)
     await torrent.start()
@@ -93,7 +87,6 @@ class TorrentManager {
 
     // Register completion callback
     torrent.onComplete((torrentName) => {
-      console.log(`Torrent completed: ${torrentName}`)
       torrentStateManager.updateTorrentStatus(id, 'completed')
 
       // Show native system notification
@@ -154,7 +147,6 @@ class TorrentManager {
   }
 
   async resumeTorrent(id: string): Promise<void> {
-    console.log('Resuming ', id)
     await this.torrents.get(id)?.resumeTorrent()
     torrentStateManager.updateTorrentStatus(id, 'downloading')
   }
@@ -167,8 +159,6 @@ class TorrentManager {
 
       torrent.pause()
 
-      console.log(`Delete torrent - downloadPath: ${downloadPath}, deleteData: ${deleteData}`)
-
       if (deleteData && downloadPath) {
         // Delete the entire download folder/file
         try {
@@ -179,7 +169,6 @@ class TorrentManager {
             } else {
               fs.unlinkSync(downloadPath)
             }
-            console.log(`Deleted torrent data at: ${downloadPath}`)
           }
         } catch (err) {
           console.error(`Failed to delete torrent data: ${(err as Error).message}`)
@@ -190,7 +179,6 @@ class TorrentManager {
           const resumeFilePath = path.join(downloadPath, '.resume.json')
           if (fs.existsSync(resumeFilePath)) {
             fs.unlinkSync(resumeFilePath)
-            console.log(`Deleted resume file at: ${resumeFilePath}`)
           }
         } catch (err) {
           console.error(`Failed to delete resume file: ${(err as Error).message}`)
@@ -199,7 +187,6 @@ class TorrentManager {
     }
     this.torrents.delete(id)
     torrentStateManager.removeTorrent(id)
-    console.log(`Deleted torrent: ${id}${deleteData ? ' (with data)' : ''}`)
   }
 
   // Restore torrents from saved state
@@ -210,10 +197,6 @@ class TorrentManager {
     await Promise.all(
       savedTorrents.map(async (savedTorrent) => {
         try {
-          console.log(
-            `Restoring torrent: ${savedTorrent.torrentPath} (Status: ${savedTorrent.status})`
-          )
-
           const torrent = new StartTorrent(savedTorrent.torrentPath, savedTorrent.downloadLocation)
           await torrent.start()
 

@@ -48,13 +48,14 @@ export class MetadataPeer extends EventEmitter {
       console.warn(`MetadataPeer connect to ${this.PEER_IP}:${this.PEER_PORT} timed out`)
       try {
         this.socket?.destroy()
-      } catch (_) {}
+      } catch {
+        console.warn('Socket failed to destroy')
+      }
       this.emit('disconnected')
     }, CONNECT_TIMEOUT)
 
     this.socket.once('connect', () => {
       clearTimeout(connectTimer)
-      console.log(`✅ TCP connected to ${this.PEER_IP}:${this.PEER_PORT}, sending handshake...`)
       this.socket?.write(encodedHandshake)
     })
 
@@ -62,7 +63,9 @@ export class MetadataPeer extends EventEmitter {
       console.error('MetadataPeer socket error:', err)
       try {
         this.socket?.destroy()
-      } catch (_) {}
+      } catch {
+        console.warn('Socket failed to destroy')
+      }
       this.emit('disconnected')
     })
 
@@ -76,7 +79,9 @@ export class MetadataPeer extends EventEmitter {
       console.warn(`MetadataPeer connection to ${this.PEER_IP}:${this.PEER_PORT} timed out`)
       try {
         this.socket?.destroy()
-      } catch (_) {}
+      } catch {
+        console.warn('Socket failed to destroy')
+      }
       this.emit('disconnected')
     })
 
@@ -149,11 +154,9 @@ export class MetadataPeer extends EventEmitter {
         const message = this.buffer.subarray(0, convertedLength + 4)
         const parsed = decode(message)
         this.buffer = this.buffer.subarray(4 + convertedLength)
-        console.log('Message ID:', parsed?.id)
 
         if (parsed.id === 20) {
           const decodedData = bencodeDecoder(parsed.result.data, 0)
-          console.log(decodedData)
 
           if (parsed.result.subId === 0) {
             this.metadataSize = decodedData?.decodedValue.metadata_size

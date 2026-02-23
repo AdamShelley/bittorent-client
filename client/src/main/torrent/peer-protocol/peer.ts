@@ -61,7 +61,7 @@ export class Peer extends EventEmitter {
     this.connect()
   }
 
-  connect() {
+  connect(): void {
     if (!this.clientInfoHash || !this.clientPeerId || !this.PEER_PORT || !this.PEER_IP) return
     const handshake = encodeHandshake(this.clientInfoHash, this.clientPeerId)
 
@@ -78,11 +78,11 @@ export class Peer extends EventEmitter {
     })
   }
 
-  checkInfoHash = (clientHash: Buffer, peerHash: Buffer) => {
+  checkInfoHash = (clientHash: Buffer, peerHash: Buffer): boolean => {
     return clientHash.equals(peerHash)
   }
 
-  handleData = (data: Buffer) => {
+  handleData = (data: Buffer): void => {
     if (!this.handshakeDone) {
       try {
         const res = decodeHandshake(data)
@@ -122,7 +122,7 @@ export class Peer extends EventEmitter {
         } else {
           // Waiting
         }
-      } catch (e) {
+      } catch {
         // console.warn(
         //   `Handshake failed with ${this.PEER_IP}:`,
         //   e instanceof Error ? e.message : "Unknown error"
@@ -215,7 +215,7 @@ export class Peer extends EventEmitter {
     }
   }
 
-  fillPipeline() {
+  fillPipeline = (): void => {
     while (this.pendingRequests.length < this.maxPipelineRequests && this.requestQueue.length > 0) {
       const req = this.requestQueue.shift()!
       if (!req) continue
@@ -228,7 +228,7 @@ export class Peer extends EventEmitter {
     }
   }
 
-  handleError = (error: NodeJS.ErrnoException) => {
+  handleError = (error: NodeJS.ErrnoException): void => {
     const nodeError = error as NodeJS.ErrnoException
     if (nodeError.code === 'ECONNREFUSED') {
       // console.log(`Peer ${this.PEER_IP} refused connection`);
@@ -254,12 +254,12 @@ export class Peer extends EventEmitter {
     return (byte & mask) !== 0
   }
 
-  requestPiece = (pieceIndex: number, offset: number, length: number) => {
+  requestPiece = (pieceIndex: number, offset: number, length: number): void => {
     this.requestQueue.push({ pieceIndex, offset, length })
     this.fillPipeline()
   }
 
-  markPieceAsAvailable = (pieceIndex: number) => {
+  markPieceAsAvailable = (pieceIndex: number): void => {
     const byteIndex = Math.floor(pieceIndex / 8)
     const bitIndex = pieceIndex % 8
 
@@ -275,18 +275,18 @@ export class Peer extends EventEmitter {
     this.bitfield[byteIndex] |= mask
   }
 
-  sendPiece(pieceIndex: number, offset: number, block: Buffer) {
+  sendPiece = (pieceIndex: number, offset: number, block: Buffer): void => {
     const message = encodePiece(pieceIndex, offset, block)
     this.socket?.write(message)
   }
 
-  encodeUnchokeHelper = () => {
+  encodeUnchokeHelper = (): void => {
     const unchoked = encodeUnchoke()
     this.socket?.write(unchoked)
     this.amChoking = false
   }
 
-  cancelPiece = (pieceIndex: number) => {
+  cancelPiece = (pieceIndex: number): void => {
     this.requestQueue = this.requestQueue.filter((block) => {
       if (block.pieceIndex === pieceIndex) {
         this.socket?.write(encodeCancel(block.pieceIndex, block.offset, block.length))
@@ -316,7 +316,7 @@ export class Peer extends EventEmitter {
     return buffer
   }
 
-  setBitInBuffer = (buffer: Buffer, pieceIndex: number) => {
+  setBitInBuffer = (buffer: Buffer, pieceIndex: number): Buffer => {
     const byteIndex = Math.floor(pieceIndex / 8)
     const bitIndex = pieceIndex % 8
 
@@ -327,7 +327,7 @@ export class Peer extends EventEmitter {
     return buffer
   }
 
-  sendHave = (pieceIndex: number) => {
+  sendHave = (pieceIndex: number): void => {
     const haveMessage = encodeHave(pieceIndex)
     this.socket?.write(haveMessage)
   }

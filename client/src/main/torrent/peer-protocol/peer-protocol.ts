@@ -170,7 +170,6 @@ export const decode = (buffer: Buffer): { messageType: string; id?: number; resu
   if (!length) return { messageType: 'keep-alive' }
 
   const bufferId = buffer[4]
-  console.log('BUFFER ID', bufferId)
 
   switch (bufferId) {
     case 0:

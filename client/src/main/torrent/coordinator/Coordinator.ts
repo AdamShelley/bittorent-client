@@ -201,7 +201,6 @@ export class Coordinator {
   }
 
   getAnnounceStats(): { uploaded: number; downloaded: number; left: number } {
-    const completedBytes = this.pieceManager.getCompletedCount() * this.pieceLength
     const lastPieceSize = this.totalFileSize % this.pieceLength || this.pieceLength
 
     // For the last piece, use actual file size instead of piece length
@@ -303,7 +302,7 @@ export class Coordinator {
     return this.assignPieceToDownload(peer)
   }
 
-  onPeerBitfieldReceived = (peer: Peer, bitfieldData: Buffer): void => {
+  onPeerBitfieldReceived = (_peer: Peer, bitfieldData: Buffer): void => {
     this.pieceManager.updateAvailability(bitfieldData, true)
   }
 
@@ -377,7 +376,7 @@ export class Coordinator {
       this.fileManager.writePieceToFile(result, pieceData, this.pieceLength)
 
       // If endgame mode:
-      if (result.peersToCancel) {
+      if (Array.isArray(result.peersToCancel)) {
         result.peersToCancel.forEach((p) => {
           if (p !== peer) {
             p.cancelPiece(pieceData.pieceIndex)

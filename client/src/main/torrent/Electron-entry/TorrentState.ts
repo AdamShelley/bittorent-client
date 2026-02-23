@@ -50,7 +50,6 @@ export class TorrentStateManager {
         if (fs.existsSync(this.stateFilePath)) {
           const backupPath = this.stateFilePath + '.corrupted.' + Date.now()
           fs.renameSync(this.stateFilePath, backupPath)
-          console.log('Backed up corrupted state file to:', backupPath)
         }
       } catch {
         // Ignore backup errors
