@@ -2,11 +2,11 @@ import crypto from 'crypto'
 
 interface DecodedValueType {
   announce?: Buffer
-  'announce-list'?: any[]
+  'announce-list'?: Buffer[][]
   info: {
     length?: number
     files?: Array<{ length: number }>
-    [key: string]: any
+    [key: string]: unknown
   }
   _rawInfo?: Buffer
 }
@@ -34,7 +34,7 @@ export const headerAssembly = (
   } else if (decodedValue['announce-list'] && decodedValue['announce-list'].length > 0) {
     // Get first HTTP/HTTPS tracker from announce-list
     const trackers = decodedValue['announce-list']
-    let firstTracker = null
+    let firstTracker: Buffer | null = null
 
     for (const tier of trackers) {
       const tracker = Array.isArray(tier) ? tier[0] : tier
@@ -71,7 +71,10 @@ export const headerAssembly = (
     length = decodedValue.info.length
   } else if (decodedValue.info.files) {
     // Multi-file torrent - sum all file lengths
-    length = decodedValue.info.files.reduce((sum: number, file: any) => sum + file.length, 0)
+    length = decodedValue.info.files.reduce(
+      (sum: number, file: { length: number }) => sum + file.length,
+      0
+    )
   } else {
     throw new Error("Torrent info dictionary missing both 'length' and 'files'")
   }
@@ -90,7 +93,7 @@ export const headerAssembly = (
   }
 }
 
-const createPeerId = () => {
+const createPeerId = (): Buffer => {
   const prefix = Buffer.from('-AS0001-')
   const random = crypto.randomBytes(12)
   return Buffer.concat([prefix, random])

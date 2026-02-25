@@ -1,13 +1,14 @@
 import path from 'path'
 import fs from 'fs'
 import type { Peer } from '../peer-protocol/peer'
+import type { DecodedTorrent } from '../../../types/types'
 
 interface TorrentFile {
   path: Buffer[]
   length: number
 }
 export class FileManager {
-  private torrentInfo: any
+  private torrentInfo: DecodedTorrent
   private downloadLocation: string
   private customFolderName?: string
   private outputFile: number | null = null
@@ -28,7 +29,7 @@ export class FileManager {
     offset: number
   }> = []
 
-  constructor(torrentInfo: any, downloadLocation: string, customFolderName?: string) {
+  constructor(torrentInfo: DecodedTorrent, downloadLocation: string, customFolderName?: string) {
     this.torrentInfo = torrentInfo
     this.downloadLocation = downloadLocation
     this.customFolderName = customFolderName
@@ -40,14 +41,14 @@ export class FileManager {
     }
   }
 
-  setupMultiFile = () => {
+  setupMultiFile = (): void => {
     // Use custom folder name if provided, otherwise use torrent name
     const rootFolder = this.customFolderName ?? this.torrentInfo.name.toString()
     const baseDir = path.join(this.downloadLocation, rootFolder)
     this.outputFolder = baseDir
     let runningOffset = 0
 
-    this.torrentInfo.files.forEach((file: TorrentFile) => {
+    this.torrentInfo.files?.forEach((file: TorrentFile) => {
       // 1. Build the path
       const pathArray: string[] = file.path.map((p: Buffer) => p.toString())
       const fullPath: string = path.join(baseDir, ...pathArray)
@@ -75,7 +76,7 @@ export class FileManager {
     this.resumeFilePath = path.join(baseDir, '.resume.json')
   }
 
-  setupSingleFile = () => {
+  setupSingleFile = (): void => {
     const fullFileName = this.torrentInfo.name.toString()
     const lastDotIndex = fullFileName.lastIndexOf('.')
     // Use custom folder name if provided, otherwise extract from filename
@@ -104,11 +105,11 @@ export class FileManager {
       pieceIndex: number
       buffer?: Buffer
       pieceSize?: number
-      peersToCancel?: Set<any>
+      peersToCancel?: Set<Peer>
     },
     pieceData: { pieceIndex: number },
     pieceLength: number
-  ) {
+  ): void {
     // Don't write if file is closed
     if (this.isClosed) return
 
@@ -136,7 +137,7 @@ export class FileManager {
     }
   }
 
-  writeToResume(pieces: Set<number>, force: boolean = false) {
+  writeToResume(pieces: Set<number>, force: boolean = false): void {
     this.piecesSinceLastResume++
     const secondsSinceLastWrite = (Date.now() - this.lastResumeWrite) / 1000
 
@@ -155,11 +156,12 @@ export class FileManager {
     }
   }
 
-  getResumeJsonFile() {
+  getResumeJsonFile(): number[] | undefined {
     if (this.resumeFilePath && fs.existsSync(this.resumeFilePath)) {
       const completed = JSON.parse(fs.readFileSync(this.resumeFilePath, 'utf8'))
       return completed
     }
+    return undefined
   }
 
   readFilePiece(
@@ -167,7 +169,7 @@ export class FileManager {
     requestPiece: { length: number; pieceIndex: number; offset: number },
     position: number,
     peer: Peer
-  ) {
+  ): void {
     fs.read(this.getOutputFile()!, buffer, 0, requestPiece.length, position, (err, bytesRead) => {
       if (err) {
         console.error(`Error reading piece ${requestPiece.pieceIndex}:`, err.message)
@@ -185,7 +187,7 @@ export class FileManager {
     })
   }
 
-  closeFile() {
+  closeFile(): void {
     if (this.isClosed) return
     this.isClosed = true
 
@@ -200,27 +202,27 @@ export class FileManager {
     }
   }
 
-  getFiles() {
+  getFiles(): Array<{ path: string; fd: number; length: number; offset: number }> {
     return this.files
   }
 
-  getOutputFile() {
+  getOutputFile(): number | null {
     return this.outputFile
   }
 
-  getOutputFolder() {
+  getOutputFolder(): string | null {
     return this.outputFolder
   }
 
-  getOutputPath() {
+  getOutputPath(): string {
     return this.outputPath
   }
 
-  getResumeFilePath() {
+  getResumeFilePath(): string | null {
     return this.resumeFilePath ?? null
   }
 
-  getDownloadLocation() {
+  getDownloadLocation(): string {
     return this.downloadLocation
   }
 }
