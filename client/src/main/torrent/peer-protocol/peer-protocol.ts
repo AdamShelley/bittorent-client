@@ -1,4 +1,4 @@
-export const encodeHandshake = (info_hash: Buffer, peer_id: Buffer) => {
+export const encodeHandshake = (info_hash: Buffer, peer_id: Buffer): Buffer => {
   // Length of the protocol bytes
   const firstByte = Buffer.from([19])
   // 19 bytes - For the string
@@ -13,11 +13,11 @@ export const encodeHandshake = (info_hash: Buffer, peer_id: Buffer) => {
 }
 
 // Keep alive
-export const encodeKeepAliveMessage = () => {
+export const encodeKeepAliveMessage = (): Buffer => {
   return Buffer.from([0, 0, 0, 0])
 }
 
-const encodeSimpleMessage = (messageId: number) => {
+const encodeSimpleMessage = (messageId: number): Buffer => {
   const buffer = Buffer.alloc(5)
   buffer.writeUInt32BE(1, 0)
   buffer[4] = messageId
@@ -29,14 +29,14 @@ const encodeSimpleMessage = (messageId: number) => {
 // 2 - interested
 // 3 - not interested
 
-export const encodeChoke = () => encodeSimpleMessage(0)
-export const encodeUnchoke = () => encodeSimpleMessage(1)
-export const encodeInterested = () => encodeSimpleMessage(2)
-export const encodeNotInterested = () => encodeSimpleMessage(3)
+export const encodeChoke = (): Buffer => encodeSimpleMessage(0)
+export const encodeUnchoke = (): Buffer => encodeSimpleMessage(1)
+export const encodeInterested = (): Buffer => encodeSimpleMessage(2)
+export const encodeNotInterested = (): Buffer => encodeSimpleMessage(3)
 
 // 4 - have
 
-export const encodeHave = (pieceIndex: number) => {
+export const encodeHave = (pieceIndex: number): Buffer => {
   const buffer = Buffer.alloc(9)
   buffer.writeUInt32BE(5, 0)
   buffer[4] = 4
@@ -46,7 +46,7 @@ export const encodeHave = (pieceIndex: number) => {
 }
 
 // 5 - bitfield
-export const encodeBitfield = (bitfield: Buffer) => {
+export const encodeBitfield = (bitfield: Buffer): Buffer => {
   const buffer = Buffer.alloc(5)
   buffer.writeUInt32BE(1 + bitfield.length, 0)
   buffer[4] = 5
@@ -54,7 +54,7 @@ export const encodeBitfield = (bitfield: Buffer) => {
 }
 
 // 6 - request
-export const encodeRequest = (pieceIndex: number, offset: number, length: number) => {
+export const encodeRequest = (pieceIndex: number, offset: number, length: number): Buffer => {
   const buffer = Buffer.alloc(17)
   buffer.writeUInt32BE(13, 0)
   buffer[4] = 6
@@ -67,7 +67,7 @@ export const encodeRequest = (pieceIndex: number, offset: number, length: number
 }
 
 // 7 - piece
-export const encodePiece = (index: number, begin: number, piece: Buffer) => {
+export const encodePiece = (index: number, begin: number, piece: Buffer): Buffer => {
   const buffer = Buffer.alloc(13)
   buffer.writeUInt32BE(1 + 4 + 4 + piece.length, 0)
   buffer[4] = 7
@@ -79,7 +79,7 @@ export const encodePiece = (index: number, begin: number, piece: Buffer) => {
 }
 
 // 8 - cancel
-export const encodeCancel = (index: number, begin: number, length: number) => {
+export const encodeCancel = (index: number, begin: number, length: number): Buffer => {
   const buffer = Buffer.alloc(17)
   buffer.writeUInt32BE(13, 0)
   buffer[4] = 8
@@ -120,7 +120,7 @@ export const decodeHandshake = (
   }
 }
 
-export const decodeHave = (buffer: Buffer) => {
+export const decodeHave = (buffer: Buffer): { pieceIndex: number } => {
   const decoded: { pieceIndex: number } = { pieceIndex: 0 }
 
   decoded.pieceIndex = buffer.readUInt32BE(5)
@@ -128,12 +128,14 @@ export const decodeHave = (buffer: Buffer) => {
   return decoded
 }
 
-export const decodeBitfield = (buffer: Buffer) => {
+export const decodeBitfield = (buffer: Buffer): { bitfield: Buffer } => {
   buffer = buffer.subarray(5)
   return { bitfield: buffer }
 }
 
-export const decodeRequest = (buffer: Buffer) => {
+export const decodeRequest = (
+  buffer: Buffer
+): { requestPiece: number; startByte: number; requestBytes: number } => {
   const requestPiece = buffer.readUInt32BE(5)
   const startByte = buffer.readUInt32BE(9)
   const requestBytes = buffer.readUInt32BE(13)
@@ -145,7 +147,9 @@ export const decodeRequest = (buffer: Buffer) => {
   }
 }
 
-export const decodePiece = (buffer: Buffer) => {
+export const decodePiece = (
+  buffer: Buffer
+): { pieceIndex: number; offset: number; block: Buffer } => {
   const pieceIndex = buffer.readUInt32BE(5)
   const offset = buffer.readUInt32BE(9)
   const block = buffer.subarray(13)
@@ -157,7 +161,9 @@ export const decodePiece = (buffer: Buffer) => {
   }
 }
 
-export const decodeCancel = (buffer: Buffer) => {
+export const decodeCancel = (
+  buffer: Buffer
+): { requestPiece: number; startByte: number; requestBytes: number } => {
   const requestPiece = buffer.readUInt32BE(5)
   const startByte = buffer.readUInt32BE(9)
   const requestBytes = buffer.readUInt32BE(13)
@@ -165,7 +171,17 @@ export const decodeCancel = (buffer: Buffer) => {
   return { requestPiece, startByte, requestBytes }
 }
 
-export const decode = (buffer: Buffer): { messageType: string; id?: number; result?: any } => {
+type DecodeResult =
+  | undefined
+  | { pieceIndex: number }
+  | { bitfield: Buffer }
+  | { requestPiece: number; startByte: number; requestBytes: number }
+  | { pieceIndex: number; offset: number; block: Buffer }
+  | { subId: number; data: Buffer }
+
+export const decode = (
+  buffer: Buffer
+): { messageType: string; id?: number; result?: DecodeResult } => {
   const length = buffer.readUInt32BE(0)
   if (!length) return { messageType: 'keep-alive' }
 
