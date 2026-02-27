@@ -38,14 +38,14 @@ export class PieceManager {
     }
   }
 
-  markPieceComplete = (pieceIndex: number) => {
+  markPieceComplete = (pieceIndex: number): void => {
     this.completedPieces.add(pieceIndex)
     this.piecesNeeded.delete(pieceIndex)
   }
 
-  getPieceToDownload = (peer: Peer) => {
-    let peersPieces: number[] = []
-    for (let piece of this.piecesNeeded) {
+  getPieceToDownload = (peer: Peer): number | null => {
+    const peersPieces: number[] = []
+    for (const piece of this.piecesNeeded) {
       if (peer.hasPiece(piece) && (this.isEndgameMode || !this.inProgressPieces.has(piece))) {
         peersPieces.push(piece)
       }
@@ -95,10 +95,10 @@ export class PieceManager {
     }
 
     // Build array of block reqeuest
-    const blocks = []
+    const blocks: { offset: number; length: number }[] = []
 
     for (let i = 0; i < blocksToRequest; i++) {
-      let offset = i * SETTINGS.BLOCK_SIZE
+      const offset = i * SETTINGS.BLOCK_SIZE
 
       // Last block might be smaller
       let length
@@ -114,7 +114,7 @@ export class PieceManager {
     return blocks
   }
 
-  trackPeerAssignment = (pieceIndex: number, peer: Peer) => {
+  trackPeerAssignment = (pieceIndex: number, peer: Peer): void => {
     this.inProgressPieces.add(pieceIndex)
 
     if (!this.peerPieces.has(pieceIndex)) {
@@ -123,7 +123,20 @@ export class PieceManager {
     this.peerPieces.get(pieceIndex)!.add(peer)
   }
 
-  onBlockReceived = (pieceIndex: number, offset: number, block: Buffer) => {
+  onBlockReceived = (
+    pieceIndex: number,
+    offset: number,
+    block: Buffer
+  ):
+    | {
+        status: 'complete'
+        pieceIndex: number
+        buffer: Buffer
+        pieceSize: number
+        peersToCancel?: Set<Peer> | undefined
+      }
+    | { status: 'failed'; pieceIndex: number }
+    | { status: 'incomplete'; pieceIndex: number } => {
     if (!this.receivedBlocks.has(pieceIndex)) {
       this.receivedBlocks.set(pieceIndex, new Set())
     }
@@ -182,7 +195,7 @@ export class PieceManager {
 
       const buffer = this.pieceBuffers.get(pieceIndex)
       const pieceSize = actualPieceSize
-      let peersToCancel = undefined
+      let peersToCancel: Set<Peer> | undefined = undefined
 
       // If endgame mode:
       if (this.isEndgameMode && this.peerPieces.has(pieceIndex)) {
@@ -203,6 +216,13 @@ export class PieceManager {
         this.isEndgameMode = true
       }
 
+      if (!buffer) {
+        return {
+          status: 'failed',
+          pieceIndex
+        }
+      }
+
       return {
         status: 'complete',
         pieceIndex,
@@ -215,7 +235,7 @@ export class PieceManager {
     }
   }
 
-  getBlockCount = (pieceIndex: number) => {
+  getBlockCount = (pieceIndex: number): number => {
     return this.pieceBlockCounts.get(pieceIndex) || 0
   }
 
@@ -227,23 +247,20 @@ export class PieceManager {
     return this.completedPieces
   }
 
-  getPiecesNeededCount() {
+  getPiecesNeededCount(): number {
     return this.piecesNeeded.size
   }
-  isDownloadComplete() {
-    return
-  }
 
-  setEndgameMode(isEndgame: boolean) {
+  setEndgameMode(isEndgame: boolean): void {
     this.isEndgameMode = isEndgame
   }
 
-  incrementPieceAvailability = (pieceIndex: number) => {
+  incrementPieceAvailability = (pieceIndex: number): void => {
     const currentCount = this.pieceCount.get(pieceIndex) || 0
     this.pieceCount.set(pieceIndex, currentCount + 1)
   }
 
-  updateAvailability = (bitfield: Buffer, isAdding: boolean) => {
+  updateAvailability = (bitfield: Buffer, isAdding: boolean): void => {
     // Loop through bitfield and update
     for (let pieceIndex = 0; pieceIndex < this.totalPieces; pieceIndex++) {
       const hasPiece = this.hasPiece(pieceIndex, bitfield)
